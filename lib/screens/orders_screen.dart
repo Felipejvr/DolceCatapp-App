@@ -345,7 +345,7 @@ class _OrdersScreenState extends State<OrdersScreen> with SingleTickerProviderSt
                 }),
                 const SizedBox(height: 20),
                 
-                // NUEVO: Lógica de Guardado en Firebase
+                // Lógica de Guardado en Firebase
                 isSaving 
                 ? const Center(child: CircularProgressIndicator(color: Color(0xFFD98A7A)))
                 : ElevatedButton(
@@ -360,32 +360,39 @@ class _OrdersScreenState extends State<OrdersScreen> with SingleTickerProviderSt
                       // CREAR NUEVO
                       setModalState(() => isSaving = true);
                       
-                      List<String> finalImageUrls = [];
-                      for (var img in tempImages) {
-                        if (img is String) finalImageUrls.add(img);
-                        if (img is Uint8List) {
-                          String fileName = 'pedidos/${DateTime.now().millisecondsSinceEpoch}.jpg';
-                          Reference ref = FirebaseStorage.instance.ref().child(fileName);
-                          await ref.putData(img);
-                          finalImageUrls.add(await ref.getDownloadURL());
+                      try {
+                        List<String> finalImageUrls = [];
+                        for (var img in tempImages) {
+                          if (img is String) finalImageUrls.add(img);
+                          if (img is Uint8List) {
+                            String fileName = 'pedidos/${DateTime.now().millisecondsSinceEpoch}.jpg';
+                            Reference ref = FirebaseStorage.instance.ref().child(fileName);
+                            await ref.putData(img);
+                            finalImageUrls.add(await ref.getDownloadURL());
+                          }
                         }
-                      }
 
-                      await FirebaseFirestore.instance.collection('pedidos').add({
-                        'product': _productCtrl.text,
-                        'customer': _customerCtrl.text,
-                        'date': tempDate,
-                        'price': p,
-                        'amountPaid': a,
-                        'paymentStatus': tempPaymentStatus,
-                        'productionStatus': tempProdStatus,
-                        'notas': _notasCtrl.text,
-                        'imagenesRef': finalImageUrls,
-                      });
+                        await FirebaseFirestore.instance.collection('pedidos').add({
+                          'product': _productCtrl.text,
+                          'customer': _customerCtrl.text,
+                          'date': tempDate,
+                          'price': p,
+                          'amountPaid': a,
+                          'paymentStatus': tempPaymentStatus,
+                          'productionStatus': tempProdStatus,
+                          'notas': _notasCtrl.text,
+                          'imagenesRef': finalImageUrls,
+                        });
 
-                      if(mounted) {
-                        Navigator.pop(context);
-                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Pedido guardado en la nube"), backgroundColor: Colors.green));
+                        if(mounted) {
+                          Navigator.pop(context);
+                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Pedido guardado en la nube"), backgroundColor: Colors.green));
+                        }
+                      } catch (e) {
+                        setModalState(() => isSaving = false);
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error al guardar: $e"), backgroundColor: Colors.red));
+                        }
                       }
                     } else {
                       // EDITAR EXISTENTE
@@ -404,33 +411,40 @@ class _OrdersScreenState extends State<OrdersScreen> with SingleTickerProviderSt
                                 Navigator.pop(ctx); // Cierra el cuadro de confirmación
                                 setModalState(() => isSaving = true); // Muestra barra de carga
                                 
-                                List<String> finalImageUrls = [];
-                                for (var img in tempImages) {
-                                  if (img is String) finalImageUrls.add(img);
-                                  if (img is Uint8List) {
-                                    String fileName = 'pedidos/${DateTime.now().millisecondsSinceEpoch}.jpg';
-                                    Reference ref = FirebaseStorage.instance.ref().child(fileName);
-                                    await ref.putData(img);
-                                    finalImageUrls.add(await ref.getDownloadURL());
+                                try {
+                                  List<String> finalImageUrls = [];
+                                  for (var img in tempImages) {
+                                    if (img is String) finalImageUrls.add(img);
+                                    if (img is Uint8List) {
+                                      String fileName = 'pedidos/${DateTime.now().millisecondsSinceEpoch}.jpg';
+                                      Reference ref = FirebaseStorage.instance.ref().child(fileName);
+                                      await ref.putData(img);
+                                      finalImageUrls.add(await ref.getDownloadURL());
+                                    }
                                   }
-                                }
 
-                                await FirebaseFirestore.instance.collection('pedidos').doc(orderToEdit.id).update({
-                                  'product': _productCtrl.text,
-                                  'customer': _customerCtrl.text,
-                                  'date': tempDate,
-                                  'price': p,
-                                  'amountPaid': a,
-                                  'paymentStatus': tempPaymentStatus,
-                                  'productionStatus': tempProdStatus,
-                                  'notas': _notasCtrl.text,
-                                  'imagenesRef': finalImageUrls,
-                                });
+                                  await FirebaseFirestore.instance.collection('pedidos').doc(orderToEdit.id).update({
+                                    'product': _productCtrl.text,
+                                    'customer': _customerCtrl.text,
+                                    'date': tempDate,
+                                    'price': p,
+                                    'amountPaid': a,
+                                    'paymentStatus': tempPaymentStatus,
+                                    'productionStatus': tempProdStatus,
+                                    'notas': _notasCtrl.text,
+                                    'imagenesRef': finalImageUrls,
+                                  });
 
-                                if(mounted) {
-                                  Navigator.pop(context); // Cierra el modal de edición
-                                  Navigator.pop(context); // Cierra la pantalla de detalles
-                                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Cambios guardados en la nube"), backgroundColor: Colors.green));
+                                  if(mounted) {
+                                    Navigator.pop(context); // Cierra el modal de edición
+                                    Navigator.pop(context); // Cierra la pantalla de detalles
+                                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Cambios guardados en la nube"), backgroundColor: Colors.green));
+                                  }
+                                } catch (e) {
+                                  setModalState(() => isSaving = false);
+                                  if (mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error al actualizar: $e"), backgroundColor: Colors.red));
+                                  }
                                 }
                               },
                               child: const Text("Guardar", style: TextStyle(color: Colors.white)),

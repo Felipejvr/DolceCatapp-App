@@ -1,17 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart'; 
-import 'firebase_options.dart';    
 import 'screens/dashboard_screen.dart';
 import 'screens/orders_screen.dart';
 import 'screens/inventory_screen.dart';
 import 'screens/reports_screen.dart';
+import 'firebase_options_dev.dart' as dev;
+import 'firebase_options_prod.dart' as prod;
 
+
+// Cambia a 'false' SOLO cuando vayas a lanzar la app real a tus clientes.
+const bool isDevMode = true; 
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // La app decide a qué base de datos conectarse según el interruptor
   await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
+    options: isDevMode 
+        ? dev.DefaultFirebaseOptions.currentPlatform 
+        : prod.DefaultFirebaseOptions.currentPlatform,
   );
+
   runApp(const BakerApp());
 }
 
