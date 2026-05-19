@@ -1,0 +1,122 @@
+import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart'; 
+import 'firebase_options.dart';    
+import 'screens/dashboard_screen.dart';
+import 'screens/orders_screen.dart';
+import 'screens/inventory_screen.dart';
+import 'screens/reports_screen.dart';
+
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+  runApp(const BakerApp());
+}
+
+class BakerApp extends StatelessWidget {
+  const BakerApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      title: 'DolceCatapp',
+      theme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFFFDE9E0)),
+        scaffoldBackgroundColor: const Color(0xFFFFF5F0),
+        useMaterial3: true,
+      ),
+      home: const MyHomePage(),
+    );
+  }
+}
+
+class MyHomePage extends StatefulWidget {
+  const MyHomePage({super.key});
+
+  @override
+  State<MyHomePage> createState() => _MyHomePageState();
+}
+
+class _MyHomePageState extends State<MyHomePage> {
+
+  @override
+  void initState() {
+    super.initState();
+    _inicializarDatosGlobales();
+  }
+
+  void _inicializarDatosGlobales() {
+    if (globalOrders.isEmpty) {
+      globalOrders.addAll([
+        OrderData(
+          id: '1', product: "Torta Red Velvet", customer: "Carolina Soto", 
+          date: "26/05/2026", price: 35000, amountPaid: 15000, 
+          paymentStatus: "Monto abonado", productionStatus: "Tomado", notas: "Feliz Cumpleaños"
+        ),
+        OrderData(
+          id: '2', product: "12 Alfajores Maicena", customer: "Pedro Vargas", 
+          date: "28/05/2026", price: 12000, amountPaid: 0, 
+          paymentStatus: "No pagado", productionStatus: "Listo", notas: "Bordes con coco"
+        ),
+        OrderData(
+          id: '3', product: "Cheesecake Frambuesa", customer: "María Ignacia", 
+          date: "27/05/2026", price: 22000, amountPaid: 22000, 
+          paymentStatus: "Pagado", productionStatus: "Tomado", notas: "Sin azúcar"
+        ),
+      ]);
+    }
+  }
+
+  List<Widget> get _paginas => [
+    const DashboardScreen(), // Index 0
+    const OrdersScreen(),    // Index 1
+    const InventoryScreen(), // Index 2
+    const Center(child: Text("Clientes en construcción 🚧")), // Index 3 (Placeholder temporal)
+    const ReportsScreen(),   // Index 4 (El que acabamos de agregar)
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    // 1. Escucha cambios en los datos (precios, estados, etc)
+    return ValueListenableBuilder<int>(
+      valueListenable: appDataNotifier,
+      builder: (context, dataVal, child) {
+        
+        // 2. Escucha cambios en la pestaña actual (para que el calendario pueda cambiarla)
+        return ValueListenableBuilder<int>(
+          valueListenable: appTabIndex,
+          builder: (context, tabIndex, child) {
+            return Scaffold(
+              body: SafeArea(
+                child: IndexedStack(
+                  index: tabIndex,
+                  children: _paginas,
+                ),
+              ),
+              bottomNavigationBar: BottomNavigationBar(
+                currentIndex: tabIndex,
+                onTap: (index) => appTabIndex.value = index, // Actualiza la pestaña global
+                type: BottomNavigationBarType.fixed,
+                backgroundColor: Colors.white,
+                selectedItemColor: const Color(0xFFD98A7A),
+                unselectedItemColor: Colors.grey[700],
+                selectedLabelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                unselectedLabelStyle: const TextStyle(fontSize: 11),
+                items: const [
+                  BottomNavigationBarItem(icon: Icon(Icons.home_outlined), activeIcon: Icon(Icons.home), label: 'Resumen'),
+                  BottomNavigationBarItem(icon: Icon(Icons.receipt_long_outlined), activeIcon: Icon(Icons.receipt_long), label: 'Pedidos'),
+                  BottomNavigationBarItem(icon: Icon(Icons.inventory_2_outlined), activeIcon: Icon(Icons.inventory_2), label: 'Insumos'),
+                  BottomNavigationBarItem(icon: Icon(Icons.people_outline), activeIcon: Icon(Icons.people), label: 'Clientes'),
+                  BottomNavigationBarItem(icon: Icon(Icons.bar_chart_outlined), activeIcon: Icon(Icons.bar_chart), label: 'Reportes'),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+}

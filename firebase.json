@@ -1,0 +1,39 @@
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "dolcecatapp",
+          "appId": "1:750898760438:android:a3da73b7cb32a474e63ad7",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "dolcecatapp",
+          "configurations": {
+            "android": "1:750898760438:android:a3da73b7cb32a474e63ad7",
+            "ios": "1:750898760438:ios:98edc91bac8dbac2e63ad7",
+            "macos": "1:750898760438:ios:98edc91bac8dbac2e63ad7",
+            "web": "1:750898760438:web:135afac17c2d6568e63ad7",
+            "windows": "1:750898760438:web:5d2e2fbc2d7b99b8e63ad7"
+          }
+        }
+      }
+    }
+  },
+  "hosting": {
+    "public": "build/web",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ]
+  }
+}
