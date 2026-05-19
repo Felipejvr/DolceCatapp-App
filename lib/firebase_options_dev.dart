@@ -41,47 +41,46 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyAAL-Y29VMmP7yrkN31mH_G6hIgX_qmZPQ',
-    appId: '1:750898760438:web:135afac17c2d6568e63ad7',
-    messagingSenderId: '750898760438',
-    projectId: 'dolcecatapp',
-    authDomain: 'dolcecatapp.firebaseapp.com',
-    storageBucket: 'dolcecatapp.firebasestorage.app',
+    apiKey: 'AIzaSyAD283r_vehhGJfYEgFFSRl79HVofxASrs',
+    appId: '1:273596692474:web:c77d6f5c63ee002d9b5643',
+    messagingSenderId: '273596692474',
+    projectId: 'dolcecatapp-dev',
+    authDomain: 'dolcecatapp-dev.firebaseapp.com',
+    storageBucket: 'dolcecatapp-dev.firebasestorage.app',
   );
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyAS7XNfCKKDDR1sSE_Xdql3vkM5YHCIsyI',
-    appId: '1:750898760438:android:a3da73b7cb32a474e63ad7',
-    messagingSenderId: '750898760438',
-    projectId: 'dolcecatapp',
-    storageBucket: 'dolcecatapp.firebasestorage.app',
+    apiKey: 'AIzaSyBKlLf1_UvSuumpq1Df2_IQGRBBAAg_D9E',
+    appId: '1:273596692474:android:73cb2232867f4f6b9b5643',
+    messagingSenderId: '273596692474',
+    projectId: 'dolcecatapp-dev',
+    storageBucket: 'dolcecatapp-dev.firebasestorage.app',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyBBy2Dw9i6Py4lROPowfYmoSHUPAbwgAMg',
-    appId: '1:750898760438:ios:98edc91bac8dbac2e63ad7',
-    messagingSenderId: '750898760438',
-    projectId: 'dolcecatapp',
-    storageBucket: 'dolcecatapp.firebasestorage.app',
+    apiKey: 'AIzaSyBS1rDFpXK9zpA1vrNKI4YRbh8FHI3h5Hw',
+    appId: '1:273596692474:ios:04ef37617b41e8609b5643',
+    messagingSenderId: '273596692474',
+    projectId: 'dolcecatapp-dev',
+    storageBucket: 'dolcecatapp-dev.firebasestorage.app',
     iosBundleId: 'com.example.registrosReposteria',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
-    apiKey: 'AIzaSyBBy2Dw9i6Py4lROPowfYmoSHUPAbwgAMg',
-    appId: '1:750898760438:ios:98edc91bac8dbac2e63ad7',
-    messagingSenderId: '750898760438',
-    projectId: 'dolcecatapp',
-    storageBucket: 'dolcecatapp.firebasestorage.app',
+    apiKey: 'AIzaSyBS1rDFpXK9zpA1vrNKI4YRbh8FHI3h5Hw',
+    appId: '1:273596692474:ios:04ef37617b41e8609b5643',
+    messagingSenderId: '273596692474',
+    projectId: 'dolcecatapp-dev',
+    storageBucket: 'dolcecatapp-dev.firebasestorage.app',
     iosBundleId: 'com.example.registrosReposteria',
   );
 
   static const FirebaseOptions windows = FirebaseOptions(
-    apiKey: 'AIzaSyAAL-Y29VMmP7yrkN31mH_G6hIgX_qmZPQ',
-    appId: '1:750898760438:web:5d2e2fbc2d7b99b8e63ad7',
-    messagingSenderId: '750898760438',
-    projectId: 'dolcecatapp',
-    authDomain: 'dolcecatapp.firebaseapp.com',
-    storageBucket: 'dolcecatapp.firebasestorage.app',
+    apiKey: 'AIzaSyAD283r_vehhGJfYEgFFSRl79HVofxASrs',
+    appId: '1:273596692474:web:b3d0775f77d0c63c9b5643',
+    messagingSenderId: '273596692474',
+    projectId: 'dolcecatapp-dev',
+    authDomain: 'dolcecatapp-dev.firebaseapp.com',
+    storageBucket: 'dolcecatapp-dev.firebasestorage.app',
   );
-
 }
