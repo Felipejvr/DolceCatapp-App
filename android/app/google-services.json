@@ -1,13 +1,13 @@
 {
   "project_info": {
-    "project_number": "273596692474",
-    "project_id": "dolcecatapp-dev",
-    "storage_bucket": "dolcecatapp-dev.firebasestorage.app"
+    "project_number": "750898760438",
+    "project_id": "dolcecatapp",
+    "storage_bucket": "dolcecatapp.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:273596692474:android:73cb2232867f4f6b9b5643",
+        "mobilesdk_app_id": "1:750898760438:android:a3da73b7cb32a474e63ad7",
         "android_client_info": {
           "package_name": "com.example.registros_reposteria"
         }
@@ -15,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyBKlLf1_UvSuumpq1Df2_IQGRBBAAg_D9E"
+          "current_key": "AIzaSyAS7XNfCKKDDR1sSE_Xdql3vkM5YHCIsyI"
         }
       ],
       "services": {
