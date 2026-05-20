@@ -11,17 +11,20 @@ En `lib/main.dart`, modifica la variable `isDevMode`:
 const bool isDevMode = true;  // Usar base de datos de desarrollo
 const bool isDevMode = false; // Usar base de datos de producción
 ```
-#### Seleccionar proyecto
+#### Util
 ```bash
+flutter clean // limpia todo
+flutter pub get // reinstala lo limpiado
 firebase use <project_name>
+```
+#### Crear firebase.json
+```bash
+flutterfire configure --project=dolcecatapp
 ```
 #### Empaquetar aplicación
 ```bash
-flutter build web
-```
-#### Lanzar aplicación
-```bash
-firebase deploy --only hosting
+flutter build web // empaqueta
+firebase deploy --only hosting // lanza
 ```
 #### Apagar sitio de prueba
 ```bash
