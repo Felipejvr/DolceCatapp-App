@@ -15,6 +15,7 @@ class ExpenseData {
   int amount;
   DateTime date;
   String category;
+  DateTime? createdAt;
 
   ExpenseData({
     required this.id,
@@ -22,6 +23,7 @@ class ExpenseData {
     required this.amount,
     required this.date,
     this.category = "Otros",
+    this.createdAt,
   });
 
   // Convertir de Firestore a Objeto
@@ -33,6 +35,7 @@ class ExpenseData {
       amount: data['amount'] ?? 0,
       date: (data['date'] as Timestamp).toDate(),
       category: data['category'] ?? 'Otros',
+      createdAt: data['createdAt'] != null ? (data['createdAt'] as Timestamp).toDate() : null, 
     );
   }
 
@@ -43,6 +46,7 @@ class ExpenseData {
       'amount': amount,
       'date': Timestamp.fromDate(date),
       'category': category,
+      'createdAt': createdAt != null ? Timestamp.fromDate(createdAt!) : null,
     };
   }
 }
@@ -435,6 +439,7 @@ class _ReportsScreenState extends State<ReportsScreen> with SingleTickerProvider
                       'amount': int.parse(amtCtrl.text),
                       'date': Timestamp.fromDate(tempDate),
                       'category': selectedCat,
+                      'createdAt': FieldValue.serverTimestamp(),
                     });
                   } else {
                     // ACTUALIZAR EXISTENTE
@@ -443,6 +448,7 @@ class _ReportsScreenState extends State<ReportsScreen> with SingleTickerProvider
                       'amount': int.parse(amtCtrl.text),
                       'date': Timestamp.fromDate(tempDate),
                       'category': selectedCat,
+                      'createdAt': FieldValue.serverTimestamp(),
                     });
                   }
                   

@@ -3,9 +3,9 @@ import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:table_calendar/table_calendar.dart'; 
 import 'dart:typed_data';
-import 'dart:async'; // NUEVO
-import 'package:cloud_firestore/cloud_firestore.dart'; // NUEVO
-import 'package:firebase_storage/firebase_storage.dart'; // NUEVO
+import 'dart:async'; 
+import 'package:cloud_firestore/cloud_firestore.dart'; 
+import 'package:firebase_storage/firebase_storage.dart'; 
 
 import '../widgets/order_card.dart';
 import '../widgets/custom_header.dart';
@@ -33,7 +33,6 @@ class OrderData {
   String paymentStatus; 
   String productionStatus; 
   String notas;
-  // Cambiado a dynamic para soportar URLs de internet (String) y fotos recién tomadas (Uint8List)
   List<dynamic> imagenesRef;
 
   OrderData({
@@ -50,7 +49,6 @@ class OrderData {
     } catch (e) { return DateTime(2099); }
   }
 
-  // NUEVO: Función mágica para leer desde Firebase
   factory OrderData.fromFirestore(DocumentSnapshot doc) {
     Map data = doc.data() as Map<String, dynamic>;
     return OrderData(
@@ -72,6 +70,7 @@ class OrderData {
 // NOTIFICADORES GLOBALES
 // ==========================================
 List<OrderData> globalOrders = [];
+bool isDataLoaded = false; // EL INTERRUPTOR QUE CONTROLA LAS CARGAS
 ValueNotifier<int> appDataNotifier = ValueNotifier(0);
 ValueNotifier<int> appTabIndex = ValueNotifier(0);
 ValueNotifier<String> globalSearchNotifier = ValueNotifier("");
@@ -96,7 +95,7 @@ class _OrdersScreenState extends State<OrdersScreen> with SingleTickerProviderSt
   late TabController _tabController;
   late PageController _pageController; 
   
-  StreamSubscription? _pedidosSub; // NUEVO: Controlador del escuchador de Firebase
+  StreamSubscription? _pedidosSub; 
 
   @override
   void initState() {
@@ -109,17 +108,21 @@ class _OrdersScreenState extends State<OrdersScreen> with SingleTickerProviderSt
 
     globalSearchNotifier.addListener(_onGlobalSearchChanged);
     
-    // NUEVO: Arrancamos el escuchador de base de datos
     _escucharPedidos();
   }
 
-  // NUEVO: Función que mantiene los pedidos sincronizados en tiempo real
   void _escucharPedidos() {
     _pedidosSub = FirebaseFirestore.instance.collection('pedidos').snapshots().listen((snapshot) {
       globalOrders = snapshot.docs.map((doc) => OrderData.fromFirestore(doc)).toList();
+      isDataLoaded = true; // Avisa a toda la app que ya hay datos
       if (mounted) {
-        appDataNotifier.value++; // Esto actualiza toda tu pantalla y el calendario automáticamente
+        appDataNotifier.value++; 
       }
+    }, onError: (error) {
+      // Si hay un error (ej. sin internet), quitamos la pantalla de carga para no dejar la app pegada
+      isDataLoaded = true; 
+      if (mounted) appDataNotifier.value++;
+      print("Error en Firebase: $error");
     });
   }
 
@@ -138,7 +141,7 @@ class _OrdersScreenState extends State<OrdersScreen> with SingleTickerProviderSt
 
   @override
   void dispose() { 
-    _pedidosSub?.cancel(); // Apagamos el escuchador al salir
+    _pedidosSub?.cancel(); 
     globalSearchNotifier.removeListener(_onGlobalSearchChanged);
     _tabController.dispose(); 
     _pageController.dispose(); 
@@ -146,7 +149,6 @@ class _OrdersScreenState extends State<OrdersScreen> with SingleTickerProviderSt
     super.dispose(); 
   }
 
-  // --- LÓGICA DEL CALENDARIO ---
   List<OrderData> _getOrdersForDay(DateTime day) {
     return globalOrders.where((order) {
       return order.dateTime.year == day.year &&
@@ -187,13 +189,11 @@ class _OrdersScreenState extends State<OrdersScreen> with SingleTickerProviderSt
                       setState(() => _focusedDay = picked);
                     }
                   },
-
                   calendarStyle: CalendarStyle(
                     todayDecoration: BoxDecoration(color: const Color(0xFFD98A7A).withOpacity(0.3), shape: BoxShape.circle),
                     selectedDecoration: const BoxDecoration(color: Color(0xFFD98A7A), shape: BoxShape.circle),
                     markerDecoration: const BoxDecoration(color: Colors.transparent),
                   ),
-
                   calendarBuilders: CalendarBuilders(
                     markerBuilder: (context, day, events) {
                       if (events.isNotEmpty) {
@@ -210,7 +210,6 @@ class _OrdersScreenState extends State<OrdersScreen> with SingleTickerProviderSt
                       return null;
                     },
                   ),
-
                   onDaySelected: (selectedDay, focusedDay) {
                     Navigator.pop(context);
                     String d = selectedDay.day.toString().padLeft(2, '0');
@@ -246,7 +245,7 @@ class _OrdersScreenState extends State<OrdersScreen> with SingleTickerProviderSt
     String tempPaymentStatus = orderToEdit?.paymentStatus ?? "No pagado";
     String tempProdStatus = orderToEdit?.productionStatus ?? "Tomado";
     List<dynamic> tempImages = List.from(orderToEdit?.imagenesRef ?? []); 
-    bool isSaving = false; // NUEVO: Estado de carga
+    bool isSaving = false; 
 
     if (orderToEdit != null) {
       _productCtrl.text = orderToEdit.product;
@@ -301,7 +300,6 @@ class _OrdersScreenState extends State<OrdersScreen> with SingleTickerProviderSt
                             },
                             child: ClipRRect(
                               borderRadius: BorderRadius.circular(10),
-                              // NUEVO: Diferencia entre foto de internet o recién tomada
                               child: tempImages[index] is String 
                                 ? Image.network(tempImages[index], width: 70, height: 70, fit: BoxFit.cover)
                                 : Image.memory(tempImages[index] as Uint8List, width: 70, height: 70, fit: BoxFit.cover),
@@ -345,7 +343,6 @@ class _OrdersScreenState extends State<OrdersScreen> with SingleTickerProviderSt
                 }),
                 const SizedBox(height: 20),
                 
-                // Lógica de Guardado en Firebase
                 isSaving 
                 ? const Center(child: CircularProgressIndicator(color: Color(0xFFD98A7A)))
                 : ElevatedButton(
@@ -357,7 +354,6 @@ class _OrdersScreenState extends State<OrdersScreen> with SingleTickerProviderSt
                     int a = int.tryParse(_abonoCtrl.text.replaceAll('.', '')) ?? 0;
                     
                     if (orderToEdit == null) {
-                      // CREAR NUEVO
                       setModalState(() => isSaving = true);
                       
                       try {
@@ -395,7 +391,6 @@ class _OrdersScreenState extends State<OrdersScreen> with SingleTickerProviderSt
                         }
                       }
                     } else {
-                      // EDITAR EXISTENTE
                       showDialog(
                         context: context,
                         builder: (ctx) => AlertDialog(
@@ -408,8 +403,8 @@ class _OrdersScreenState extends State<OrdersScreen> with SingleTickerProviderSt
                             ElevatedButton(
                               style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFD98A7A)),
                               onPressed: () async {
-                                Navigator.pop(ctx); // Cierra el cuadro de confirmación
-                                setModalState(() => isSaving = true); // Muestra barra de carga
+                                Navigator.pop(ctx); 
+                                setModalState(() => isSaving = true); 
                                 
                                 try {
                                   List<String> finalImageUrls = [];
@@ -436,8 +431,8 @@ class _OrdersScreenState extends State<OrdersScreen> with SingleTickerProviderSt
                                   });
 
                                   if(mounted) {
-                                    Navigator.pop(context); // Cierra el modal de edición
-                                    Navigator.pop(context); // Cierra la pantalla de detalles
+                                    Navigator.pop(context); 
+                                    Navigator.pop(context); 
                                     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Cambios guardados en la nube"), backgroundColor: Colors.green));
                                   }
                                 } catch (e) {
@@ -499,7 +494,6 @@ class _OrdersScreenState extends State<OrdersScreen> with SingleTickerProviderSt
                       return GestureDetector(
                         onTap: () {
                           Navigator.push(context, MaterialPageRoute(builder: (_) => VisorImagenes(imagenes: order.imagenesRef, indiceInicial: index, onEliminar: (idx) {
-                                  // Solo remueve de la vista, los cambios finales se hacen al editar.
                                   setDialogState(() => order.imagenesRef.removeAt(idx));
                                   appDataNotifier.value++; 
                                 }),
@@ -637,8 +631,13 @@ class _OrdersScreenState extends State<OrdersScreen> with SingleTickerProviderSt
   }
 
   Widget _buildListHojaDeLibro({required bool esFinalizado}) {
+    if (!isDataLoaded) {
+      return const Center(child: CircularProgressIndicator(color: Color(0xFFD98A7A)));
+    }
+
     final lista = _getListaFiltrada(esFinalizado);
     if (lista.isEmpty) return Center(child: Text(esFinalizado ? "Sin pedidos finalizados" : "Sin pedidos activos.", style: TextStyle(color: Colors.grey[600], fontSize: 13)));
+    
     return ListView.builder(
       padding: const EdgeInsets.all(10),
       itemCount: lista.length,
@@ -668,7 +667,6 @@ class _OrdersScreenState extends State<OrdersScreen> with SingleTickerProviderSt
                     ElevatedButton(
                       style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
                       onPressed: () {
-                        // NUEVO: Borramos de Firebase
                         FirebaseFirestore.instance.collection('pedidos').doc(order.id).delete();
                         Navigator.pop(ctx);
                         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Pedido eliminado de la nube"), backgroundColor: Colors.red));
@@ -695,7 +693,6 @@ class _OrdersScreenState extends State<OrdersScreen> with SingleTickerProviderSt
                       ElevatedButton(
                         style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFD98A7A)),
                         onPressed: () {
-                          // NUEVO: Actualizamos el estado en Firebase
                           FirebaseFirestore.instance.collection('pedidos').doc(order.id).update({'productionStatus': nuevoEstado});
                           Navigator.pop(ctx);
                           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Pedido movido a Finalizados"), backgroundColor: Colors.green));
@@ -706,7 +703,6 @@ class _OrdersScreenState extends State<OrdersScreen> with SingleTickerProviderSt
                   )
                 );
               } else {
-                // NUEVO: Actualizamos el estado en Firebase
                 FirebaseFirestore.instance.collection('pedidos').doc(order.id).update({'productionStatus': nuevoEstado});
               }
             },
@@ -718,7 +714,7 @@ class _OrdersScreenState extends State<OrdersScreen> with SingleTickerProviderSt
 }
 
 class VisorImagenes extends StatefulWidget {
-  final List<dynamic> imagenes; // Cambiado a dynamic
+  final List<dynamic> imagenes; 
   final int indiceInicial;
   final Function(int) onEliminar;
 
@@ -768,7 +764,6 @@ class _VisorImagenesState extends State<VisorImagenes> {
             itemBuilder: (context, index) { 
               return InteractiveViewer(
                 minScale: 0.5, maxScale: 4.0, 
-                // NUEVO: Permite ver fotos descargadas de internet y fotos recién tomadas
                 child: widget.imagenes[index] is String 
                     ? Image.network(widget.imagenes[index], fit: BoxFit.contain)
                     : Image.memory(widget.imagenes[index] as Uint8List, fit: BoxFit.contain)

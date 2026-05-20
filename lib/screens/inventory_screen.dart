@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:table_calendar/table_calendar.dart';
+import 'dart:async'; // NUEVO: Para el Stream de Firebase
+import 'package:cloud_firestore/cloud_firestore.dart'; // NUEVO: Base de datos
+
 import 'orders_screen.dart'; 
 import '../widgets/custom_header.dart';
 
@@ -18,21 +21,29 @@ class InventoryItem {
 }
 
 class ChecklistItem {
-  String id; String name; bool isDone;
+  String id; 
+  String name; 
+  bool isDone;
+  
   ChecklistItem({required this.id, required this.name, this.isDone = false});
+
+  // NUEVO: Factory para leer desde Firebase
+  factory ChecklistItem.fromFirestore(DocumentSnapshot doc) {
+    Map data = doc.data() as Map<String, dynamic>;
+    return ChecklistItem(
+      id: doc.id,
+      name: data['name'] ?? '',
+      isDone: data['isDone'] ?? false,
+    );
+  }
 }
 
-// Listas y Controles Globales (Para que el Dashboard los pueda modificar)
-List<InventoryItem> globalInventory = [
-  InventoryItem(id: '1', name: 'Harina sin polvos', category: 'Secos', quantity: 15, unit: 'kg', minThreshold: 5, lastPrice: 1200),
-  InventoryItem(id: '2', name: 'Mantequilla sin sal', category: 'Refrigerados', quantity: 2, unit: 'kg', minThreshold: 4, lastPrice: 8500),
-  InventoryItem(id: '3', name: 'Cajas 20x20 altas', category: 'Empaque', quantity: 0, unit: 'un', minThreshold: 10, lastPrice: 450),
-];
+// 1. CAMBIO: Listas globales limpias (Sin datos de prueba)
+List<InventoryItem> globalInventory = [];
 List<ChecklistItem> globalChecklist = [];
 
-// NUEVO: Filtros globales para que el dashboard los modifique
 Set<String> globalSelectedStatuses = {};   
-ValueNotifier<int> inventoryTabNotifier = ValueNotifier(0); // Para forzar ir a la pestaña "Inventario"
+ValueNotifier<int> inventoryTabNotifier = ValueNotifier(0); 
 
 class InventoryScreen extends StatefulWidget {
   const InventoryScreen({super.key});
@@ -48,17 +59,17 @@ class _InventoryScreenState extends State<InventoryScreen> with SingleTickerProv
   late PageController _pageController;
   DateTime _focusedDay = DateTime.now();
 
-  // Controladores de búsqueda
   final _searchController = TextEditingController();
   String _searchQuery = "";
   Set<String> _selectedCategories = {}; 
 
-  // Controladores de formularios
   final _checklistCtrl = TextEditingController();
   final _nameCtrl = TextEditingController();
   final _qtyCtrl = TextEditingController();
   final _priceCtrl = TextEditingController();
   final _minCtrl = TextEditingController();
+
+  StreamSubscription? _checklistSub; // NUEVO: Escuchador de Firebase
 
   @override
   void initState() {
@@ -66,8 +77,25 @@ class _InventoryScreenState extends State<InventoryScreen> with SingleTickerProv
     _tabController = TabController(length: 2, vsync: this);
     _pageController = PageController();
 
-    // Escucha si el Dashboard pide cambiar a la pestaña de "Inventario"
     inventoryTabNotifier.addListener(_onTabNotifierChanged);
+    
+    // NUEVO: Iniciar sincronización de lista de compras
+    _escucharChecklist();
+  }
+
+  // NUEVO: Escuchar cambios en la colección 'compras' en tiempo real
+  void _escucharChecklist() {
+    _checklistSub = FirebaseFirestore.instance
+        .collection('compras')
+        .orderBy('createdAt') // Mantiene el orden de creación
+        .snapshots()
+        .listen((snapshot) {
+      globalChecklist = snapshot.docs.map((doc) => ChecklistItem.fromFirestore(doc)).toList();
+      if (mounted) {
+        appDataNotifier.value++; // Avisa al Dashboard
+        setState(() {}); // Actualiza esta pantalla
+      }
+    });
   }
 
   void _onTabNotifierChanged() {
@@ -79,13 +107,13 @@ class _InventoryScreenState extends State<InventoryScreen> with SingleTickerProv
 
   @override
   void dispose() {
+    _checklistSub?.cancel(); // Apagar escuchador
     inventoryTabNotifier.removeListener(_onTabNotifierChanged);
     _tabController.dispose(); _pageController.dispose();
     _searchController.dispose(); _checklistCtrl.dispose();
     super.dispose();
   }
 
-  // --- LÓGICA DE BÚSQUEDA Y FILTRADO MÚLTIPLE ---
   List<InventoryItem> _getFilteredInventory() {
     return globalInventory.where((item) {
       bool matchesSearch = item.name.toLowerCase().contains(_searchQuery.toLowerCase());
@@ -106,7 +134,6 @@ class _InventoryScreenState extends State<InventoryScreen> with SingleTickerProv
     }).toList();
   }
 
-  // --- MENÚ INFERIOR DE FILTROS ---
   void _mostrarFiltros() {
     showModalBottomSheet(
       context: context,
@@ -201,7 +228,6 @@ class _InventoryScreenState extends State<InventoryScreen> with SingleTickerProv
     );
   }
 
-  // --- CAMBIO MANUAL DE CANTIDAD ---
   void _editarCantidadManual(InventoryItem item) {
     final manualQtyCtrl = TextEditingController(text: item.quantity.toString());
     showDialog(
@@ -233,7 +259,6 @@ class _InventoryScreenState extends State<InventoryScreen> with SingleTickerProv
     );
   }
 
-  // --- ELIMINAR INSUMO ---
   void _confirmarEliminacion(InventoryItem item) {
     showDialog(
       context: context,
@@ -258,7 +283,6 @@ class _InventoryScreenState extends State<InventoryScreen> with SingleTickerProv
     );
   }
 
-  // --- FORMULARIO DE INSUMO ---
   void _abrirFormularioInsumo({InventoryItem? itemToEdit}) {
     String selectedCat = itemToEdit?.category ?? 'Secos';
     String selectedUnit = itemToEdit?.unit ?? 'un';
@@ -356,7 +380,6 @@ class _InventoryScreenState extends State<InventoryScreen> with SingleTickerProv
       backgroundColor: Colors.transparent,
       floatingActionButton: _tabController.index == 0 ? FloatingActionButton(onPressed: () => _abrirFormularioInsumo(), backgroundColor: mainColor, mini: true, child: const Icon(Icons.add, color: Colors.white, size: 20)) : null,
       
-      // EL ESCUCHADOR ENVOLVIENDO TODO EL BODY
       body: ValueListenableBuilder<int>(
         valueListenable: appDataNotifier,
         builder: (context, dataValue, child) {
@@ -433,7 +456,9 @@ class _InventoryScreenState extends State<InventoryScreen> with SingleTickerProv
         ),
 
         Expanded(
-          child: ListView.builder(
+          child: filteredItems.isEmpty 
+          ? const Center(child: Text("Tu inventario está vacío.", style: TextStyle(color: Colors.grey)))
+          : ListView.builder(
             padding: const EdgeInsets.symmetric(horizontal: 12),
             itemCount: filteredItems.length,
             itemBuilder: (context, index) {
@@ -477,7 +502,7 @@ class _InventoryScreenState extends State<InventoryScreen> with SingleTickerProv
     );
   }
 
-Widget _buildComprasTab() {
+  Widget _buildComprasTab() {
     return Column(
       children: [
         Padding(
@@ -487,13 +512,15 @@ Widget _buildComprasTab() {
               Expanded(child: TextField(controller: _checklistCtrl, decoration: InputDecoration(hintText: "Agregar a la lista...", filled: true, fillColor: Colors.white, border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none)))),
               const SizedBox(width: 8),
               IconButton.filled(
-                onPressed: () { 
+                onPressed: () async { 
                   if(_checklistCtrl.text.isNotEmpty) {
-                    setState(() { 
-                      globalChecklist.add(ChecklistItem(id: DateTime.now().toString(), name: _checklistCtrl.text)); 
-                      _checklistCtrl.clear(); 
-                      appDataNotifier.value++; // <--- ESTO AVISA AL DASHBOARD
-                    }); 
+                    // 2. CAMBIO: Guarda directamente en Firestore
+                    await FirebaseFirestore.instance.collection('compras').add({
+                      'name': _checklistCtrl.text,
+                      'isDone': false,
+                      'createdAt': FieldValue.serverTimestamp(),
+                    });
+                    _checklistCtrl.clear(); 
                   }
                 }, 
                 icon: const Icon(Icons.add), 
@@ -503,40 +530,65 @@ Widget _buildComprasTab() {
           ),
         ),
         Expanded(
-          child: ListView.builder(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            itemCount: globalChecklist.length,
-            itemBuilder: (ctx, i) {
-              final item = globalChecklist[i];
-              return Card(
-                elevation: 0, color: Colors.white,
-                child: CheckboxListTile(
-                  value: item.isDone, 
-                  activeColor: mainColor, 
-                  title: Text(item.name, style: TextStyle(decoration: item.isDone ? TextDecoration.lineThrough : null)),
-                  onChanged: (v) => setState(() { 
-                    item.isDone = v!; 
-                    appDataNotifier.value++; // <--- ESTO AVISA AL DASHBOARD
-                  }),
-                  secondary: IconButton(
-                    icon: const Icon(Icons.delete_outline, color: Colors.grey), 
-                    onPressed: () => setState(() { 
-                      globalChecklist.removeAt(i); 
-                      appDataNotifier.value++; // <--- ESTO AVISA AL DASHBOARD
-                    })
+          child: globalChecklist.isEmpty
+            ? const Center(child: Text("Tu lista de compras está vacía.", style: TextStyle(color: Colors.grey)))
+            : ListView.builder(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              itemCount: globalChecklist.length,
+              itemBuilder: (ctx, i) {
+                final item = globalChecklist[i];
+                return Card(
+                  elevation: 0, color: Colors.white,
+                  child: CheckboxListTile(
+                    value: item.isDone, 
+                    activeColor: mainColor, 
+                    title: Text(item.name, style: TextStyle(decoration: item.isDone ? TextDecoration.lineThrough : null)),
+                    onChanged: (v) async { 
+                      // 3. CAMBIO: Actualiza el estado en Firestore directamente
+                      await FirebaseFirestore.instance.collection('compras').doc(item.id).update({'isDone': v});
+                    },
+                    // 4. CAMBIO: Se remueve el ícono individual de papelera para respetar tu regla
+                    // "solo se puede borrar al confirmar Limpiar completados"
                   ),
-                ),
-              );
-            },
-          ),
+                );
+              },
+            ),
         ),
         Padding(
           padding: const EdgeInsets.all(15),
           child: ElevatedButton.icon(
-            onPressed: () => setState(() { 
-              globalChecklist.removeWhere((x) => x.isDone); 
-              appDataNotifier.value++; // <--- ESTO AVISA AL DASHBOARD
-            }), 
+            onPressed: () {
+              // 5. CAMBIO: Modal de confirmación para eliminar elementos en lote
+              showDialog(
+                context: context,
+                builder: (ctx) => AlertDialog(
+                  backgroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                  title: const Text("Limpiar completados", style: TextStyle(color: Color(0xFFD98A7A))),
+                  content: const Text("¿Estás seguro de que deseas borrar los elementos completados de tu base de datos?"),
+                  actions: [
+                    TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancelar", style: TextStyle(color: Colors.grey))),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(backgroundColor: mainColor),
+                      onPressed: () async {
+                        Navigator.pop(ctx);
+                        
+                        // Elimina todos los marcados de Firebase en una sola transacción
+                        var batch = FirebaseFirestore.instance.batch();
+                        for(var item in globalChecklist.where((x) => x.isDone)) {
+                          var docRef = FirebaseFirestore.instance.collection('compras').doc(item.id);
+                          batch.delete(docRef);
+                        }
+                        await batch.commit();
+                        
+                        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Limpieza completada en la nube"), backgroundColor: Colors.green));
+                      },
+                      child: const Text("Confirmar", style: TextStyle(color: Colors.white))
+                    )
+                  ],
+                )
+              );
+            }, 
             icon: const Icon(Icons.delete_sweep), 
             label: const Text("Limpiar completados", style: TextStyle(fontWeight: FontWeight.bold)), 
             style: ElevatedButton.styleFrom(minimumSize: const Size(double.infinity, 45), backgroundColor: Colors.white, foregroundColor: mainColor, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15), side: BorderSide(color: mainColor.withOpacity(0.5))))
