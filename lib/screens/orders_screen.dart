@@ -9,6 +9,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 
 import '../widgets/order_card.dart';
 import '../widgets/custom_header.dart';
+import '../widgets/order_form_modal.dart';
 
 class CLPInputFormatter extends TextInputFormatter {
   @override
@@ -240,226 +241,6 @@ class _OrdersScreenState extends State<OrdersScreen> with SingleTickerProviderSt
     }).toList()..sort((a, b) => a.dateTime.compareTo(b.dateTime));
   }
 
-  void _abrirFormulario({OrderData? orderToEdit}) {
-    String tempDate = orderToEdit?.date ?? "";
-    String tempPaymentStatus = orderToEdit?.paymentStatus ?? "No pagado";
-    String tempProdStatus = orderToEdit?.productionStatus ?? "Tomado";
-    List<dynamic> tempImages = List.from(orderToEdit?.imagenesRef ?? []); 
-    bool isSaving = false; 
-
-    if (orderToEdit != null) {
-      _productCtrl.text = orderToEdit.product;
-      _customerCtrl.text = orderToEdit.customer;
-      _priceCtrl.text = _formatCLP(orderToEdit.price);
-      _abonoCtrl.text = _formatCLP(orderToEdit.amountPaid);
-      _notasCtrl.text = orderToEdit.notas;
-    } else {
-      _productCtrl.clear(); _customerCtrl.clear(); _priceCtrl.clear(); _abonoCtrl.clear(); _notasCtrl.clear();
-    }
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(25))),
-      builder: (context) => StatefulBuilder(
-        builder: (context, setModalState) => Padding(
-          padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom, left: 20, right: 20, top: 20),
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(child: Text(orderToEdit == null ? "Nuevo Pedido" : "Editar Pedido", style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold))),
-                TextField(controller: _productCtrl, decoration: const InputDecoration(labelText: "Producto")),
-                TextField(controller: _customerCtrl, decoration: const InputDecoration(labelText: "Cliente")),
-                TextField(controller: _priceCtrl, decoration: const InputDecoration(labelText: "Total", prefixText: "\$ "), keyboardType: TextInputType.number, inputFormatters: [FilteringTextInputFormatter.digitsOnly, CLPInputFormatter()]),
-                DropdownButtonFormField<String>(value: tempPaymentStatus, items: ["No pagado", "Monto abonado", "Pagado"].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(), onChanged: (val) => setModalState(() => tempPaymentStatus = val!)),
-                if (tempPaymentStatus == "Monto abonado") TextField(controller: _abonoCtrl, decoration: const InputDecoration(labelText: "Abono", prefixText: "\$ "), keyboardType: TextInputType.number, inputFormatters: [FilteringTextInputFormatter.digitsOnly, CLPInputFormatter()]),
-                TextField(controller: _notasCtrl, decoration: const InputDecoration(labelText: "Notas"), maxLines: 2),
-                
-                const SizedBox(height: 15),
-                const Text("Imágenes de referencia", style: TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 10),
-                
-                Wrap(
-                  spacing: 10, runSpacing: 10,
-                  children: [
-                    ...List.generate(tempImages.length, (index) {
-                      return Stack(
-                        clipBehavior: Clip.none,
-                        children: [
-                          GestureDetector(
-                            onTap: () {
-                              Navigator.push(context, MaterialPageRoute(
-                                builder: (_) => VisorImagenes(
-                                  imagenes: tempImages, indiceInicial: index,
-                                  onEliminar: (idx) => setModalState(() => tempImages.removeAt(idx)),
-                                ),
-                              ));
-                            },
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(10),
-                              child: tempImages[index] is String 
-                                ? Image.network(tempImages[index], width: 70, height: 70, fit: BoxFit.cover)
-                                : Image.memory(tempImages[index] as Uint8List, width: 70, height: 70, fit: BoxFit.cover),
-                            ),
-                          ),
-                          Positioned(
-                            right: -5, top: -5,
-                            child: GestureDetector(
-                              onTap: () => setModalState(() => tempImages.removeAt(index)),
-                              child: const CircleAvatar(radius: 12, backgroundColor: Colors.red, child: Icon(Icons.close, size: 14, color: Colors.white)),
-                            ),
-                          )
-                        ],
-                      );
-                    }),
-                    GestureDetector(
-                      onTap: () async {
-                        final picker = ImagePicker();
-                        final List<XFile> images = await picker.pickMultiImage(); 
-                        if (images.isNotEmpty) {
-                          for (var img in images) {
-                            final bytes = await img.readAsBytes();
-                            tempImages.add(bytes);
-                          }
-                          setModalState((){});
-                        }
-                      },
-                      child: Container(
-                        width: 70, height: 70,
-                        decoration: BoxDecoration(color: const Color(0xFFFFF5F0), borderRadius: BorderRadius.circular(10), border: Border.all(color: const Color(0xFFD98A7A))),
-                        child: const Icon(Icons.add_a_photo, color: Color(0xFFD98A7A)),
-                      ),
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 15),
-                ListTile(leading: const Icon(Icons.calendar_month), title: Text(tempDate.isEmpty ? "Seleccionar Fecha" : "Fecha: $tempDate"), onTap: () async {
-                  final picked = await showDatePicker(context: context, initialDate: DateTime.now(), firstDate: DateTime(2024), lastDate: DateTime(2030));
-                  if (picked != null) setModalState(() => tempDate = "${picked.day.toString().padLeft(2,'0')}/${picked.month.toString().padLeft(2,'0')}/${picked.year}");
-                }),
-                const SizedBox(height: 20),
-                
-                isSaving 
-                ? const Center(child: CircularProgressIndicator(color: Color(0xFFD98A7A)))
-                : ElevatedButton(
-                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFD98A7A), minimumSize: const Size(double.maxFinite, 50), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15))),
-                  onPressed: () async {
-                    if (_productCtrl.text.isEmpty || tempDate.isEmpty) return;
-                    
-                    int p = int.tryParse(_priceCtrl.text.replaceAll('.', '')) ?? 0;
-                    int a = int.tryParse(_abonoCtrl.text.replaceAll('.', '')) ?? 0;
-                    
-                    if (orderToEdit == null) {
-                      setModalState(() => isSaving = true);
-                      
-                      try {
-                        List<String> finalImageUrls = [];
-                        for (var img in tempImages) {
-                          if (img is String) finalImageUrls.add(img);
-                          if (img is Uint8List) {
-                            String fileName = 'pedidos/${DateTime.now().millisecondsSinceEpoch}.jpg';
-                            Reference ref = FirebaseStorage.instance.ref().child(fileName);
-                            await ref.putData(img);
-                            finalImageUrls.add(await ref.getDownloadURL());
-                          }
-                        }
-
-                        await FirebaseFirestore.instance.collection('pedidos').add({
-                          'product': _productCtrl.text,
-                          'customer': _customerCtrl.text,
-                          'date': tempDate,
-                          'price': p,
-                          'amountPaid': a,
-                          'paymentStatus': tempPaymentStatus,
-                          'productionStatus': tempProdStatus,
-                          'notas': _notasCtrl.text,
-                          'imagenesRef': finalImageUrls,
-                        });
-
-                        if(mounted) {
-                          Navigator.pop(context);
-                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Pedido guardado en la nube"), backgroundColor: Colors.green));
-                        }
-                      } catch (e) {
-                        setModalState(() => isSaving = false);
-                        if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error al guardar: $e"), backgroundColor: Colors.red));
-                        }
-                      }
-                    } else {
-                      showDialog(
-                        context: context,
-                        builder: (ctx) => AlertDialog(
-                          backgroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-                          title: const Text("Confirmar cambios", style: TextStyle(color: Color(0xFFD98A7A))),
-                          content: const Text("¿Estás seguro que deseas guardar las modificaciones?"),
-                          actions: [
-                            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancelar", style: TextStyle(color: Colors.grey))),
-                            ElevatedButton(
-                              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFD98A7A)),
-                              onPressed: () async {
-                                Navigator.pop(ctx); 
-                                setModalState(() => isSaving = true); 
-                                
-                                try {
-                                  List<String> finalImageUrls = [];
-                                  for (var img in tempImages) {
-                                    if (img is String) finalImageUrls.add(img);
-                                    if (img is Uint8List) {
-                                      String fileName = 'pedidos/${DateTime.now().millisecondsSinceEpoch}.jpg';
-                                      Reference ref = FirebaseStorage.instance.ref().child(fileName);
-                                      await ref.putData(img);
-                                      finalImageUrls.add(await ref.getDownloadURL());
-                                    }
-                                  }
-
-                                  await FirebaseFirestore.instance.collection('pedidos').doc(orderToEdit.id).update({
-                                    'product': _productCtrl.text,
-                                    'customer': _customerCtrl.text,
-                                    'date': tempDate,
-                                    'price': p,
-                                    'amountPaid': a,
-                                    'paymentStatus': tempPaymentStatus,
-                                    'productionStatus': tempProdStatus,
-                                    'notas': _notasCtrl.text,
-                                    'imagenesRef': finalImageUrls,
-                                  });
-
-                                  if(mounted) {
-                                    Navigator.pop(context); 
-                                    Navigator.pop(context); 
-                                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Cambios guardados en la nube"), backgroundColor: Colors.green));
-                                  }
-                                } catch (e) {
-                                  setModalState(() => isSaving = false);
-                                  if (mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error al actualizar: $e"), backgroundColor: Colors.red));
-                                  }
-                                }
-                              },
-                              child: const Text("Guardar", style: TextStyle(color: Colors.white)),
-                            ),
-                          ],
-                        )
-                      );
-                    }
-                  }, 
-                  child: const Text("Guardar", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))
-                ),
-                const SizedBox(height: 20),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
   void _mostrarDetalles(OrderData order) {
     showDialog(
       context: context,
@@ -517,7 +298,7 @@ class _OrdersScreenState extends State<OrdersScreen> with SingleTickerProviderSt
             TextButton(
               onPressed: () {
                 Navigator.pop(context); 
-                _abrirFormulario(orderToEdit: order); 
+                showOrderForm(context, orderToEdit: order); 
               }, 
               child: const Text("Editar", style: TextStyle(color: Color(0xFFD98A7A), fontWeight: FontWeight.bold))
             ),
@@ -548,7 +329,7 @@ class _OrdersScreenState extends State<OrdersScreen> with SingleTickerProviderSt
 
     return Scaffold(
       backgroundColor: Colors.transparent,
-      floatingActionButton: FloatingActionButton(onPressed: () => _abrirFormulario(), backgroundColor: const Color(0xFFD98A7A), mini: true, child: const Icon(Icons.add, color: Colors.white, size: 20)),
+      floatingActionButton: FloatingActionButton(onPressed: () => showOrderForm(context), backgroundColor: const Color(0xFFD98A7A), mini: true, child: const Icon(Icons.add, color: Colors.white, size: 20)),
       
       body: ValueListenableBuilder<int>(
         valueListenable: appDataNotifier,
@@ -677,7 +458,7 @@ class _OrdersScreenState extends State<OrdersScreen> with SingleTickerProviderSt
                 ),
               );
             },
-            onEdit: () => _abrirFormulario(orderToEdit: order),
+            onEdit: () => showOrderForm(context, orderToEdit: order),
             onTap: () => _mostrarDetalles(order), 
             onStatusChange: (nuevoEstado) {
               if (nuevoEstado == "Entregado") {
@@ -711,17 +492,6 @@ class _OrdersScreenState extends State<OrdersScreen> with SingleTickerProviderSt
       },
     );
   }
-}
-
-class VisorImagenes extends StatefulWidget {
-  final List<dynamic> imagenes; 
-  final int indiceInicial;
-  final Function(int) onEliminar;
-
-  const VisorImagenes({super.key, required this.imagenes, required this.indiceInicial, required this.onEliminar});
-
-  @override
-  State<VisorImagenes> createState() => _VisorImagenesState();
 }
 
 class _VisorImagenesState extends State<VisorImagenes> {
