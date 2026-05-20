@@ -5,7 +5,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'orders_screen.dart'; 
 import 'inventory_screen.dart'; 
 import 'reports_screen.dart'; 
+
 import '../widgets/custom_header.dart';
+import '../widgets/order_form_modal.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -207,57 +209,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  void _abrirFormularioPedidoRapido() {
-    final productCtrl = TextEditingController(); final customerCtrl = TextEditingController(); final priceCtrl = TextEditingController(); final abonoCtrl = TextEditingController(); final notasCtrl = TextEditingController();
-    String tempPaymentStatus = "No pagado"; DateTime tempDate = DateTime.now(); bool isSaving = false;
-
-    showModalBottomSheet(
-      context: context, isScrollControlled: true, backgroundColor: Colors.white, shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(25))),
-      builder: (context) => StatefulBuilder(
-        builder: (context, setModalState) => Padding(
-          padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom, left: 20, right: 20, top: 20),
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Center(child: Text("Nuevo Pedido Rápido", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold))),
-                TextField(controller: productCtrl, decoration: const InputDecoration(labelText: "Producto")),
-                TextField(controller: customerCtrl, decoration: const InputDecoration(labelText: "Cliente")),
-                TextField(controller: priceCtrl, decoration: const InputDecoration(labelText: "Total", prefixText: "\$ "), keyboardType: TextInputType.number, inputFormatters: [FilteringTextInputFormatter.digitsOnly, CLPInputFormatter()]),
-                DropdownButtonFormField<String>(value: tempPaymentStatus, items: ["No pagado", "Monto abonado", "Pagado"].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(), onChanged: (val) => setModalState(() => tempPaymentStatus = val!)),
-                if (tempPaymentStatus == "Monto abonado") TextField(controller: abonoCtrl, decoration: const InputDecoration(labelText: "Abono", prefixText: "\$ "), keyboardType: TextInputType.number, inputFormatters: [FilteringTextInputFormatter.digitsOnly, CLPInputFormatter()]),
-                TextField(controller: notasCtrl, decoration: const InputDecoration(labelText: "Notas"), maxLines: 2),
-                const SizedBox(height: 15),
-                ListTile(leading: const Icon(Icons.calendar_month), title: Text("Fecha: ${tempDate.day.toString().padLeft(2,'0')}/${tempDate.month.toString().padLeft(2,'0')}/${tempDate.year}"), onTap: () async { final picked = await showDatePicker(context: context, initialDate: tempDate, firstDate: DateTime(2024), lastDate: DateTime(2030)); if (picked != null) setModalState(() => tempDate = picked); }),
-                const SizedBox(height: 20),
-                isSaving 
-                  ? const Center(child: CircularProgressIndicator(color: Color(0xFFD98A7A)))
-                  : ElevatedButton(
-                      style: ElevatedButton.styleFrom(backgroundColor: mainColor, minimumSize: const Size(double.maxFinite, 50), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15))),
-                      onPressed: () async {
-                        if (productCtrl.text.isEmpty) return;
-                        setModalState(() => isSaving = true);
-                        int p = int.tryParse(priceCtrl.text.replaceAll('.', '')) ?? 0; int a = int.tryParse(abonoCtrl.text.replaceAll('.', '')) ?? 0;
-                        String formattedDate = "${tempDate.day.toString().padLeft(2,'0')}/${tempDate.month.toString().padLeft(2,'0')}/${tempDate.year}";
-                        try {
-                          await FirebaseFirestore.instance.collection('pedidos').add({'product': productCtrl.text, 'customer': customerCtrl.text, 'date': formattedDate, 'price': p, 'amountPaid': a, 'paymentStatus': tempPaymentStatus, 'productionStatus': 'Tomado', 'notas': notasCtrl.text, 'imagenesRef': [], 'createdAt': FieldValue.serverTimestamp()});
-                          if (mounted) { Navigator.pop(context); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Pedido creado en la nube"), backgroundColor: Colors.green)); }
-                        } catch (e) {
-                          setModalState(() => isSaving = false);
-                          if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error al guardar: $e"), backgroundColor: Colors.red));
-                        }
-                      }, 
-                      child: const Text("Guardar Pedido", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))
-                    ),
-                const SizedBox(height: 20),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
   void _abrirFormularioEdicion(OrderData orderToEdit) {
     String tempDate = orderToEdit.date; String tempPaymentStatus = orderToEdit.paymentStatus;
     _productCtrl.text = orderToEdit.product; _customerCtrl.text = orderToEdit.customer; _priceCtrl.text = _formatCLP(orderToEdit.price); _abonoCtrl.text = _formatCLP(orderToEdit.amountPaid); _notasCtrl.text = orderToEdit.notas;
@@ -371,7 +322,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           children: [
                             Text("Próximos pedidos", style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.grey.shade700)),
                             InkWell(
-                              onTap: _abrirFormularioPedidoRapido,
+                              onTap: () => showOrderForm(context),
                               child: Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6), decoration: BoxDecoration(color: mainColor.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
                                 child: Row(children: [Icon(Icons.add, size: 14, color: mainColor), const SizedBox(width: 4), Text("Nuevo pedido", style: TextStyle(color: mainColor, fontSize: 11, fontWeight: FontWeight.bold))]),
@@ -534,7 +485,32 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 )
                               );
                             } else { FirebaseFirestore.instance.collection('pedidos').doc(order.id).update({'productionStatus': nuevoEstado}); }
-                          } else if (val == 'edit') { _abrirFormularioEdicion(order); }
+                          } else if (val == 'edit') { 
+                            showOrderForm(context, orderToEdit: order); // <--- Actualizado
+                          } else if (val == 'delete') {
+                            // NUEVA FUNCIÓN PARA ELIMINAR DESDE EL DASHBOARD
+                            showDialog(
+                              context: context,
+                              builder: (ctx) => AlertDialog(
+                                backgroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                                title: const Row(children: [Icon(Icons.warning_amber_rounded, color: Colors.red), SizedBox(width: 10), Text("Eliminar Pedido", style: TextStyle(color: Colors.red))]),
+                                content: Text("¿Estás seguro que deseas eliminar permanentemente el pedido de '${order.product}'?"),
+                                actions: [
+                                  TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancelar", style: TextStyle(color: Colors.grey))),
+                                  ElevatedButton(
+                                    style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                                    onPressed: () {
+                                      FirebaseFirestore.instance.collection('pedidos').doc(order.id).delete();
+                                      Navigator.pop(ctx);
+                                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Pedido eliminado de la nube"), backgroundColor: Colors.red));
+                                    },
+                                    child: const Text("Eliminar", style: TextStyle(color: Colors.white)),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }
                         },
                         itemBuilder: (ctx) => [
                           const PopupMenuItem(enabled: false, height: 30, child: Text('Cambiar estado', style: TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.bold))),
@@ -543,6 +519,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           PopupMenuItem(value: 'status_Entregado', height: 40, child: Row(children: [Icon(Icons.local_shipping, size: 18, color: order.productionStatus == 'Entregado' ? mainColor : Colors.grey), const SizedBox(width: 10), Text('Entregado', style: TextStyle(fontWeight: order.productionStatus == 'Entregado' ? FontWeight.bold : FontWeight.normal))])),
                           const PopupMenuDivider(),
                           const PopupMenuItem(value: 'edit', height: 40, child: Row(children: [Icon(Icons.edit, size: 16), SizedBox(width: 8), Text('Editar pedido')])),
+                          const PopupMenuItem(value: 'delete', height: 40, child: Row(children: [Icon(Icons.delete, size: 16, color: Colors.red), SizedBox(width: 8), Text('Eliminar pedido', style: TextStyle(color: Colors.red))])),
                         ],
                       ),
                     ),
