@@ -1,17 +1,63 @@
-# registros_reposteria
+# DolceCatapp - Guía de Operaciones y Flujo de Trabajo
+Este archivo contiene los comandos rápidos y el flujo de trabajo recomendado para la gestión de despliegue y desarrollo del proyecto.
 
-A new Flutter project.
+# DolceCatapp
 
-## Getting Started
+## 🚀 Despliegue en Firebase
 
-This project is a starting point for a Flutter application.
+### 1. Cambiar entorno (Dev/Prod)
+En `lib/main.dart`, modifica la variable `isDevMode`:
+```dart
+const bool isDevMode = true;  // Usar base de datos de desarrollo
+const bool isDevMode = false; // Usar base de datos de producción
+```
+#### Seleccionar proyecto
+```bash
+firebase use <project_name>
+```
+#### Empaquetar aplicación
+```bash
+flutter build web
+```
+#### Lanzar aplicación
+```bash
+firebase deploy --only hosting
+```
+#### Apagar sitio de prueba
+```bash
+firebase hosting:disable --project <project_name>
+```
+## 🌿 Flujo de Trabajo con Git
+Para mantener la rama main limpia y segura, utiliza el siguiente flujo basado en ramas de características (feature branches):
 
-A few resources to get you started if this is your first Flutter project:
+### 1. Guardar cambios
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+#### Una vez hechos los cambios:
+```bash
+git add .
+git commit -m "Descripción clara de lo que hiciste"
+```
+#### Actualizar el proyecto (Sincronización):
+Asegúrate de tener lo último de main antes de integrar:
+```bash
+git checkout main
+git pull origin main
+git checkout feature/nombre-de-tu-tarea
+git merge main
+```
+#### Integrar cambios a main:
+Una vez verificado que todo funciona correctamente:
+```bash
+git checkout main
+git merge feature/nombre-de-tu-tarea
+git push origin main
+```
+#### Elimina la rama local una vez integrada:
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+```bash
+git branch -d feature/nombre-de-tu-tarea
+```
+## Notas adicionales
+Asegúrate siempre de haber ejecutado flutter build web antes de cada firebase deploy.
+
+Nunca realices commits directamente sobre main a menos que sea una corrección crítica o un "hotfix" menor.
