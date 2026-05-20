@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_core/firebase_core.dart'; 
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // NUEVO: Autenticación
+
 import 'screens/dashboard_screen.dart';
 import 'screens/orders_screen.dart';
 import 'screens/inventory_screen.dart';
 import 'screens/reports_screen.dart';
+import 'screens/login_screen.dart'; // NUEVO: Importamos la pantalla de acceso
+
 import 'firebase_options_dev.dart' as dev;
 import 'firebase_options_prod.dart' as prod;
-
 
 // Cambia a 'false' SOLO cuando vayas a lanzar la app real a tus clientes.
 const bool isDevMode = true; 
@@ -37,7 +40,26 @@ class BakerApp extends StatelessWidget {
         scaffoldBackgroundColor: const Color(0xFFFFF5F0),
         useMaterial3: true,
       ),
-      home: const MyHomePage(),
+      // NUEVO: Evaluamos en tiempo real si el usuario tiene sesión activa
+      home: StreamBuilder<User?>(
+        stream: FirebaseAuth.instance.authStateChanges(),
+        builder: (context, snapshot) {
+          // 1. Si está comprobando la llave digital, mostramos una carga rápida
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Scaffold(
+              body: Center(
+                child: CircularProgressIndicator(color: Color(0xFFD98A7A)),
+              ),
+            );
+          }
+          // 2. Si el usuario tiene una sesión activa válida, entra directo a tu menú
+          if (snapshot.hasData) {
+            return const MyHomePage();
+          }
+          // 3. Si no hay sesión o la cerraron, mostramos el Login
+          return const LoginScreen();
+        },
+      ),
     );
   }
 }
@@ -58,6 +80,8 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   void _inicializarDatosGlobales() {
+    // Nota: Como ya implementamos la lectura de Firebase en orders_screen, 
+    // estos datos temporales podrían mostrarse solo un instante, pero los mantenemos por seguridad.
     if (globalOrders.isEmpty) {
       globalOrders.addAll([
         OrderData(
@@ -83,8 +107,8 @@ class _MyHomePageState extends State<MyHomePage> {
     const DashboardScreen(), // Index 0
     const OrdersScreen(),    // Index 1
     const InventoryScreen(), // Index 2
-    const Center(child: Text("Clientes en construcción 🚧")), // Index 3 (Placeholder temporal)
-    const ReportsScreen(),   // Index 4 (El que acabamos de agregar)
+    const Center(child: Text("Clientes en construcción 🚧")), // Index 3
+    const ReportsScreen(),   // Index 4 
   ];
 
   @override
