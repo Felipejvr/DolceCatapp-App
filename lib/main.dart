@@ -16,14 +16,12 @@ const bool isDevMode = true;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
   // La app decide a qué base de datos conectarse según el interruptor
   await Firebase.initializeApp(
     options: isDevMode 
         ? dev.DefaultFirebaseOptions.currentPlatform 
         : prod.DefaultFirebaseOptions.currentPlatform,
   );
-
   runApp(const BakerApp());
 }
 

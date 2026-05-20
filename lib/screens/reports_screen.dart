@@ -5,7 +5,6 @@ import 'orders_screen.dart';
 import 'dart:async';
 import '../widgets/custom_header.dart';
 import 'package:cloud_firestore/cloud_firestore.dart'; // NUEVO
-import 'package:firebase_storage/firebase_storage.dart'; // NUEVO
 
 // ==========================================
 // MODELO DE DATOS PARA GASTOS

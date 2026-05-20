@@ -15,17 +15,23 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _obscureText = true;
 
   Future<void> _iniciarSesion() async {
+    print("DEBUG: Iniciando proceso de login...");
     if (_emailCtrl.text.isEmpty || _passCtrl.text.isEmpty) return;
+      print("DEBUG: Campos vacíos");
+      
 
     setState(() => _isLoading = true);
 
     try {
+      print("DEBUG: Llamando a signInWithEmailAndPassword..."); // <-- LOG 2
       await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: _emailCtrl.text.trim(),
         password: _passCtrl.text.trim(),
       );
+      print("DEBUG: Login exitoso"); // <-- LOG 3
       // Si tiene éxito, el StreamBuilder en main.dart detectará el cambio y cambiará de pantalla automáticamente.
     } on FirebaseAuthException catch (e) {
+      print("DEBUG: Error de Firebase: ${e.code} - ${e.message}"); // <-- LOG 4
       setState(() => _isLoading = false);
       String mensaje = "Error al iniciar sesión";
       if (e.code == 'user-not-found' || e.code == 'wrong-password' || e.code == 'invalid-credential') {
