@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'orders_screen.dart'; 
-import 'inventory_screen.dart'; 
+import 'dart:async';
 import '../widgets/custom_header.dart';
+import 'package:cloud_firestore/cloud_firestore.dart'; // NUEVO
+import 'package:firebase_storage/firebase_storage.dart'; // NUEVO
 
 // ==========================================
 // MODELO DE DATOS PARA GASTOS
@@ -22,6 +24,28 @@ class ExpenseData {
     required this.date,
     this.category = "Otros",
   });
+
+  // Convertir de Firestore a Objeto
+  factory ExpenseData.fromFirestore(DocumentSnapshot doc) {
+    Map data = doc.data() as Map<String, dynamic>;
+    return ExpenseData(
+      id: doc.id,
+      description: data['description'] ?? '',
+      amount: data['amount'] ?? 0,
+      date: (data['date'] as Timestamp).toDate(),
+      category: data['category'] ?? 'Otros',
+    );
+  }
+
+  // Convertir de Objeto a Firestore
+  Map<String, dynamic> toFirestore() {
+    return {
+      'description': description,
+      'amount': amount,
+      'date': Timestamp.fromDate(date),
+      'category': category,
+    };
+  }
 }
 
 List<ExpenseData> globalExpenses = [
@@ -47,12 +71,29 @@ class _ReportsScreenState extends State<ReportsScreen> with SingleTickerProvider
   DateTime _focusedDay = DateTime.now();
   late TabController _tabController;
 
+  StreamSubscription? _expensesSub;
+
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _escucharGastos();
     _selectedMonth = DateTime.now().month;
     _selectedYear = DateTime.now().year;
+  }
+
+  void _escucharGastos() {
+    _expensesSub = FirebaseFirestore.instance.collection('gastos').snapshots().listen((snapshot) {
+      // Reemplazamos la lista global con los datos de Firebase
+      globalExpenses = snapshot.docs.map((doc) => ExpenseData.fromFirestore(doc)).toList();
+      if (mounted) appDataNotifier.value++; // Esto actualiza el resumen automáticamente
+    });
+  }
+
+  @override
+  void dispose() {
+    _expensesSub?.cancel();
+    super.dispose();
   }
 
   // --- LÓGICA DE FILTRADO Y CÁLCULO ---
@@ -109,8 +150,7 @@ class _ReportsScreenState extends State<ReportsScreen> with SingleTickerProvider
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () {
-              setState(() => globalExpenses.remove(expense));
-              appDataNotifier.value++; 
+              FirebaseFirestore.instance.collection('gastos').doc(expense.id).delete();
               Navigator.pop(context);
             },
             child: const Text("Eliminar", style: TextStyle(color: Colors.white)),
@@ -384,19 +424,29 @@ class _ReportsScreenState extends State<ReportsScreen> with SingleTickerProvider
               ),
               const SizedBox(height: 20),
               ElevatedButton(
-                onPressed: () {
+                onPressed: () async { // Hazlo async
                   if(descCtrl.text.isEmpty || amtCtrl.text.isEmpty) return;
-                  setState(() {
-                    if (expenseToEdit == null) {
-                      globalExpenses.add(ExpenseData(id: DateTime.now().toString(), description: descCtrl.text, amount: int.parse(amtCtrl.text), date: tempDate, category: selectedCat));
-                    } else {
-                      expenseToEdit.description = descCtrl.text;
-                      expenseToEdit.amount = int.parse(amtCtrl.text);
-                      expenseToEdit.date = tempDate;
-                      expenseToEdit.category = selectedCat;
-                    }
-                  });
-                  appDataNotifier.value++; 
+                  
+                  final expenseRef = FirebaseFirestore.instance.collection('gastos');
+                  
+                  if (expenseToEdit == null) {
+                    // GUARDAR NUEVO
+                    await expenseRef.add({
+                      'description': descCtrl.text,
+                      'amount': int.parse(amtCtrl.text),
+                      'date': Timestamp.fromDate(tempDate),
+                      'category': selectedCat,
+                    });
+                  } else {
+                    // ACTUALIZAR EXISTENTE
+                    await expenseRef.doc(expenseToEdit.id).update({
+                      'description': descCtrl.text,
+                      'amount': int.parse(amtCtrl.text),
+                      'date': Timestamp.fromDate(tempDate),
+                      'category': selectedCat,
+                    });
+                  }
+                  
                   Navigator.pop(context);
                 },
                 style: ElevatedButton.styleFrom(backgroundColor: mainColor, minimumSize: const Size(double.infinity, 50), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15))),
