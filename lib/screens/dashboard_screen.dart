@@ -441,9 +441,26 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildOrderRow(OrderData order, int index) {
-    List<Color> cardColors = [const Color(0xFFCDE8E0), const Color(0xFFFFD8C7), const Color(0xFFFDF0D5)]; Color bgColor = cardColors[index % cardColors.length];
+Widget _buildOrderRow(OrderData order, int index) {
+    // NUEVA LÓGICA DE COLOR (Basada estrictamente en el día del mes)
+    final List<Color> pastelColors = [
+      const Color(0xFFCDE8E0), // Verde
+      const Color(0xFFFFD8C7), // Naranja
+      const Color(0xFFFDF0D5), // Amarillo
+      const Color(0xFFE2D4F0), // Morado
+      const Color(0xFFD4E2F0), // Azul
+      const Color(0xFFFFD1DC), // Rosa
+      const Color(0xFFE2F0CB), // Lima
+      const Color(0xFFFFE4E1), // Salmón
+      const Color(0xFFE6E6FA), // Lavanda
+      const Color(0xFFD0F0C0), // Té verde
+    ];
+    
+    int dayOfMonth = order.dateTime.day;
+    Color bgColor = pastelColors[(dayOfMonth - 1) % pastelColors.length];
+    
     String shortPaymentStatus = order.paymentStatus.contains("abonado") ? "Abonado" : order.paymentStatus;
+    
     return Padding(
       padding: const EdgeInsets.only(bottom: 10.0),
       child: InkWell( 
@@ -486,9 +503,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               );
                             } else { FirebaseFirestore.instance.collection('pedidos').doc(order.id).update({'productionStatus': nuevoEstado}); }
                           } else if (val == 'edit') { 
-                            showOrderForm(context, orderToEdit: order); // <--- Actualizado
+                            showOrderForm(context, orderToEdit: order); 
                           } else if (val == 'delete') {
-                            // NUEVA FUNCIÓN PARA ELIMINAR DESDE EL DASHBOARD
                             showDialog(
                               context: context,
                               builder: (ctx) => AlertDialog(

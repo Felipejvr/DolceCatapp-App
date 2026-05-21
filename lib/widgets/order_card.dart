@@ -32,6 +32,33 @@ class OrderCard extends StatelessWidget {
     return Colors.red.shade100; 
   }
 
+  // --- NUEVA FUNCIÓN PARA OBTENER EL COLOR SEGÚN LA FECHA ---
+Color _getCardColor() {
+    final List<Color> pastelColors = [
+      const Color(0xFFCDE8E0), // Verde
+      const Color(0xFFFFD8C7), // Naranja
+      const Color(0xFFFDF0D5), // Amarillo
+      const Color(0xFFE2D4F0), // Morado
+      const Color(0xFFD4E2F0), // Azul
+      const Color(0xFFFFD1DC), // Rosa
+      const Color(0xFFE2F0CB), // Lima
+      const Color(0xFFFFE4E1), // Salmón
+      const Color(0xFFE6E6FA), // Lavanda
+      const Color(0xFFD0F0C0), // Té verde
+    ];
+    
+    try {
+      // Extraer solo el día del string (formato dd/MM/yyyy)
+      List<String> parts = date.split('/');
+      int dayOfMonth = int.parse(parts[0]);
+      
+      // Asignar el color usando el día del mes (-1 para que el día 1 sea el índice 0)
+      return pastelColors[(dayOfMonth - 1) % pastelColors.length];
+    } catch (e) {
+      return pastelColors[0]; // Color por defecto si falla el parseo
+    }
+  }
+
   Widget _buildPipelineStatic() {
     Color activeCol = const Color(0xFFD98A7A); 
     Color inactiveCol = Colors.grey.shade300;
@@ -63,7 +90,7 @@ class OrderCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: _getCardColor(), // <-- CAMBIO APLICADO AQUÍ (antes Colors.white)
           borderRadius: BorderRadius.circular(15), 
           boxShadow: [
             BoxShadow(
