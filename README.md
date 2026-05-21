@@ -21,8 +21,9 @@ firebase use <project_name>
 ```bash
 flutterfire configure --project=dolcecatapp
 ```
-#### Empaquetar aplicación
+#### Empaquetar aplicación por database
 ```bash
+firebase use <project_name> // dolcecatapp or dolcecatapp-dev
 flutter build web // empaqueta
 firebase deploy --only hosting // lanza
 ```
