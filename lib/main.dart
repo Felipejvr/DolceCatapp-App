@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart'; // NUEVO: Autenticación
+import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'screens/dashboard_screen.dart';
 import 'screens/orders_screen.dart';
@@ -33,6 +34,16 @@ class BakerApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'DolceCatapp',
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [
+        Locale('es', 'ES'), // Español
+        Locale('en', 'US'), // Inglés (fallback)
+      ],
+      locale: const Locale('es', 'ES'), // Forzamos el uso de español
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFFFDE9E0)),
         scaffoldBackgroundColor: const Color(0xFFFFF5F0),
