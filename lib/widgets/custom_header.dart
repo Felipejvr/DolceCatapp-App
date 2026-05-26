@@ -48,6 +48,8 @@ class _CustomHeaderState extends State<CustomHeader> {
                     Text("Agenda de Pedidos", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: mainColor)),
                     const SizedBox(height: 10),
                     TableCalendar(
+                      locale: 'es_ES',
+                      startingDayOfWeek: StartingDayOfWeek.monday,
                       firstDay: DateTime.utc(2024, 1, 1),
                       lastDay: DateTime.utc(2030, 12, 31),
                       focusedDay: globalFocusedDay,

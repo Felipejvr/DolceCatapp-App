@@ -172,6 +172,8 @@ class _OrdersScreenState extends State<OrdersScreen> with SingleTickerProviderSt
                 const Text("Agenda de Pedidos", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFFD98A7A))),
                 const SizedBox(height: 10),
                 TableCalendar(
+                  locale: 'es_ES',
+                  startingDayOfWeek: StartingDayOfWeek.monday,
                   firstDay: DateTime.utc(2024, 1, 1),
                   lastDay: DateTime.utc(2030, 12, 31),
                   focusedDay: _focusedDay,
