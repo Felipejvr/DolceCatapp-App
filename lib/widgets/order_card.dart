@@ -5,12 +5,12 @@ class OrderCard extends StatelessWidget {
   final String customer;
   final String date;
   final String paymentStatus;
-  final String productionStatus; 
-  final String price; 
+  final String productionStatus;
+  final String price;
   final VoidCallback onDelete;
   final VoidCallback onEdit;
-  final VoidCallback onTap; 
-  final Function(String) onStatusChange; 
+  final VoidCallback onTap;
+  final Function(String) onStatusChange;
 
   const OrderCard({
     super.key,
@@ -26,59 +26,65 @@ class OrderCard extends StatelessWidget {
     required this.onStatusChange,
   });
 
-  Color _getPaymentColor() {
-    if (paymentStatus.contains("Pagado")) return Colors.green.shade100; 
-    if (paymentStatus.contains("Abonado")) return Colors.orange.shade100; 
-    return Colors.red.shade100; 
+  bool get _isPagado => paymentStatus.contains("Pagado") && !paymentStatus.contains("No");
+  bool get _isAbonado => paymentStatus.contains("Abonado") || paymentStatus.contains("abonado");
+  Color get _paymentBgColor {
+    if (_isPagado) return const Color(0xFFD4EDDA);
+    if (_isAbonado) return const Color(0xFFFFECB3);
+    return const Color(0xFFFFCDD2);
   }
 
-  // --- NUEVA FUNCIÓN PARA OBTENER EL COLOR SEGÚN LA FECHA ---
-Color _getCardColor() {
+  Color get _paymentTextColor {
+    if (_isPagado) return const Color(0xFF1B5E20);
+    if (_isAbonado) return const Color(0xFF7B5800);
+    return const Color(0xFFB71C1C);
+  }
+
+  IconData get _paymentIcon {
+    if (_isPagado) return Icons.check_circle_rounded;
+    if (_isAbonado) return Icons.account_balance_wallet_rounded;
+    return Icons.cancel_rounded;
+  }
+
+  String get _paymentLabel {
+    if (_isPagado) return "Pagado";
+    if (_isAbonado) return paymentStatus;
+    return "Sin pagar";
+  }
+
+  Color _getCardColor() {
     final List<Color> pastelColors = [
-      const Color(0xFFCDE8E0), // Verde
-      const Color(0xFFFFD8C7), // Naranja
-      const Color(0xFFFDF0D5), // Amarillo
-      const Color(0xFFE2D4F0), // Morado
-      const Color(0xFFD4E2F0), // Azul
-      const Color(0xFFFFD1DC), // Rosa
-      const Color(0xFFE2F0CB), // Lima
-      const Color(0xFFFFE4E1), // Salmón
-      const Color(0xFFE6E6FA), // Lavanda
-      const Color(0xFFD0F0C0), // Té verde
+      const Color(0xFFCDE8E0), const Color(0xFFFFD8C7), const Color(0xFFFDF0D5),
+      const Color(0xFFE2D4F0), const Color(0xFFD4E2F0), const Color(0xFFFFD1DC),
+      const Color(0xFFE2F0CB), const Color(0xFFFFE4E1), const Color(0xFFE6E6FA),
+      const Color(0xFFD0F0C0),
     ];
-    
     try {
-      // Extraer solo el día del string (formato dd/MM/yyyy)
-      List<String> parts = date.split('/');
-      int dayOfMonth = int.parse(parts[0]);
-      
-      // Asignar el color usando el día del mes (-1 para que el día 1 sea el índice 0)
-      return pastelColors[(dayOfMonth - 1) % pastelColors.length];
-    } catch (e) {
-      return pastelColors[0]; // Color por defecto si falla el parseo
+      final day = int.parse(date.split('/')[0]);
+      return pastelColors[(day - 1) % pastelColors.length];
+    } catch (_) {
+      return pastelColors[0];
     }
   }
 
   Widget _buildPipelineStatic() {
-    Color activeCol = const Color(0xFFD98A7A); 
-    Color inactiveCol = Colors.grey.shade300;
-
-    double op1 = 1.0; 
-    double op2 = (productionStatus == "Listo" || productionStatus == "Entregado") ? 1.0 : 0.3;
-    double op3 = (productionStatus == "Entregado") ? 1.0 : 0.3;
+    const activeCol = Color(0xFFD98A7A);
+    final inactiveCol = Colors.grey.shade300;
+    final op2 = (productionStatus == "Listo" || productionStatus == "Entregado") ? 1.0 : 0.3;
+    final op3 = productionStatus == "Entregado" ? 1.0 : 0.3;
 
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Opacity(opacity: op1, child: Icon(Icons.receipt_long_outlined, size: 20, color: activeCol)),
-        const SizedBox(width: 8),
-        Icon(Icons.arrow_right_alt, size: 16, color: inactiveCol),
-        const SizedBox(width: 8),
-        Opacity(opacity: op2, child: Icon(Icons.outdoor_grill_outlined, size: 20, color: activeCol)),
-        const SizedBox(width: 8),
-        Icon(Icons.arrow_right_alt, size: 16, color: inactiveCol),
-        const SizedBox(width: 8),
-        Opacity(opacity: op3, child: Icon(Icons.local_shipping_outlined, size: 20, color: activeCol)),
+        const Opacity(opacity: 1.0, child: Icon(Icons.receipt_long_outlined, size: 18, color: activeCol)),
+        const SizedBox(width: 6),
+        Icon(Icons.arrow_right_alt, size: 14, color: inactiveCol),
+        const SizedBox(width: 6),
+        Opacity(opacity: op2, child: const Icon(Icons.outdoor_grill_outlined, size: 18, color: activeCol)),
+        const SizedBox(width: 6),
+        Icon(Icons.arrow_right_alt, size: 14, color: inactiveCol),
+        const SizedBox(width: 6),
+        Opacity(opacity: op3, child: const Icon(Icons.local_shipping_outlined, size: 18, color: activeCol)),
       ],
     );
   }
@@ -88,41 +94,38 @@ Color _getCardColor() {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+        padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: _getCardColor(), // <-- CAMBIO APLICADO AQUÍ (antes Colors.white)
-          borderRadius: BorderRadius.circular(15), 
+          color: _getCardColor(),
+          borderRadius: BorderRadius.circular(15),
           boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.08), 
-              blurRadius: 8, 
-              offset: const Offset(0, 3)
-            ),
+            BoxShadow(color: Colors.black.withValues(alpha: 0.07), blurRadius: 8, offset: const Offset(0, 3)),
           ],
         ),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Fila superior: producto + precio + menú
             Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(Icons.cake, color: Colors.brown, size: 20),
+                const Padding(
+                  padding: EdgeInsets.only(top: 2),
+                  child: Icon(Icons.cake_outlined, color: Colors.brown, size: 18),
+                ),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(product, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16), maxLines: 1, overflow: TextOverflow.ellipsis),
-                      const SizedBox(height: 1),
-                      Text(customer, style: TextStyle(color: Colors.grey.shade700, fontSize: 12)),
-                    ],
+                  child: Text(
+                    product,
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text("\$$price", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Color(0xFFD98A7A))),
-                    const SizedBox(height: 1),
-                    Text(date, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFFD98A7A))),
-                  ],
+                const SizedBox(width: 4),
+                Text(
+                  "\$$price",
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFFD98A7A)),
                 ),
                 SizedBox(
                   height: 24, width: 28,
@@ -147,24 +150,51 @@ Color _getCardColor() {
                 ),
               ],
             ),
-            const Divider(height: 16, color: Colors.black12), 
-            SizedBox(
-              height: 20, 
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(color: _getPaymentColor(), borderRadius: BorderRadius.circular(5)),
-                      child: Text(paymentStatus, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.black87)),
-                    ),
+
+            const SizedBox(height: 4),
+
+            // Cliente + fecha
+            Row(
+              children: [
+                const SizedBox(width: 26),
+                Icon(Icons.person_outline, size: 13, color: Colors.grey.shade600),
+                const SizedBox(width: 3),
+                Expanded(
+                  child: Text(customer, style: TextStyle(color: Colors.grey.shade700, fontSize: 12)),
+                ),
+                Icon(Icons.calendar_today_outlined, size: 13, color: Colors.grey.shade600),
+                const SizedBox(width: 3),
+                Text(date, style: const TextStyle(fontSize: 12, color: Color(0xFFD98A7A), fontWeight: FontWeight.bold)),
+              ],
+            ),
+
+            const Divider(height: 14, color: Colors.black12),
+
+            // Fila inferior: badge de pago + pipeline
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: _paymentBgColor,
+                    borderRadius: BorderRadius.circular(8),
                   ),
-                  _buildPipelineStatic(),
-                ],
-              ),
-            )
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(_paymentIcon, size: 12, color: _paymentTextColor),
+                      const SizedBox(width: 4),
+                      Text(
+                        _paymentLabel,
+                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: _paymentTextColor),
+                      ),
+                    ],
+                  ),
+                ),
+                const Spacer(),
+                _buildPipelineStatic(),
+              ],
+            ),
           ],
         ),
       ),

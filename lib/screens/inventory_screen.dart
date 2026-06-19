@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:table_calendar/table_calendar.dart';
-import 'dart:async'; // NUEVO: Para el Stream de Firebase
-import 'package:cloud_firestore/cloud_firestore.dart'; // NUEVO: Base de datos
+import 'dart:async';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'orders_screen.dart'; 
 import '../widgets/custom_header.dart';
@@ -27,7 +27,6 @@ class ChecklistItem {
   
   ChecklistItem({required this.id, required this.name, this.isDone = false});
 
-  // NUEVO: Factory para leer desde Firebase
   factory ChecklistItem.fromFirestore(DocumentSnapshot doc) {
     Map data = doc.data() as Map<String, dynamic>;
     return ChecklistItem(
@@ -38,7 +37,6 @@ class ChecklistItem {
   }
 }
 
-// 1. CAMBIO: Listas globales limpias (Sin datos de prueba)
 List<InventoryItem> globalInventory = [];
 List<ChecklistItem> globalChecklist = [];
 
@@ -69,7 +67,7 @@ class _InventoryScreenState extends State<InventoryScreen> with SingleTickerProv
   final _priceCtrl = TextEditingController();
   final _minCtrl = TextEditingController();
 
-  StreamSubscription? _checklistSub; // NUEVO: Escuchador de Firebase
+  StreamSubscription? _checklistSub;
 
   @override
   void initState() {
@@ -79,11 +77,9 @@ class _InventoryScreenState extends State<InventoryScreen> with SingleTickerProv
 
     inventoryTabNotifier.addListener(_onTabNotifierChanged);
     
-    // NUEVO: Iniciar sincronización de lista de compras
     _escucharChecklist();
   }
 
-  // NUEVO: Escuchar cambios en la colección 'compras' en tiempo real
   void _escucharChecklist() {
     _checklistSub = FirebaseFirestore.instance
         .collection('compras')
@@ -107,7 +103,7 @@ class _InventoryScreenState extends State<InventoryScreen> with SingleTickerProv
 
   @override
   void dispose() {
-    _checklistSub?.cancel(); // Apagar escuchador
+    _checklistSub?.cancel();
     inventoryTabNotifier.removeListener(_onTabNotifierChanged);
     _tabController.dispose(); _pageController.dispose();
     _searchController.dispose(); _checklistCtrl.dispose();
@@ -514,7 +510,6 @@ class _InventoryScreenState extends State<InventoryScreen> with SingleTickerProv
               IconButton.filled(
                 onPressed: () async { 
                   if(_checklistCtrl.text.isNotEmpty) {
-                    // 2. CAMBIO: Guarda directamente en Firestore
                     await FirebaseFirestore.instance.collection('compras').add({
                       'name': _checklistCtrl.text,
                       'isDone': false,
@@ -543,12 +538,9 @@ class _InventoryScreenState extends State<InventoryScreen> with SingleTickerProv
                     value: item.isDone, 
                     activeColor: mainColor, 
                     title: Text(item.name, style: TextStyle(decoration: item.isDone ? TextDecoration.lineThrough : null)),
-                    onChanged: (v) async { 
-                      // 3. CAMBIO: Actualiza el estado en Firestore directamente
+                    onChanged: (v) async {
                       await FirebaseFirestore.instance.collection('compras').doc(item.id).update({'isDone': v});
                     },
-                    // 4. CAMBIO: Se remueve el ícono individual de papelera para respetar tu regla
-                    // "solo se puede borrar al confirmar Limpiar completados"
                   ),
                 );
               },
@@ -558,7 +550,6 @@ class _InventoryScreenState extends State<InventoryScreen> with SingleTickerProv
           padding: const EdgeInsets.all(15),
           child: ElevatedButton.icon(
             onPressed: () {
-              // 5. CAMBIO: Modal de confirmación para eliminar elementos en lote
               showDialog(
                 context: context,
                 builder: (ctx) => AlertDialog(

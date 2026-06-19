@@ -1,28 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:table_calendar/table_calendar.dart'; 
-import 'dart:typed_data';
-import 'dart:async'; 
-import 'package:cloud_firestore/cloud_firestore.dart'; 
-import 'package:firebase_storage/firebase_storage.dart'; 
+import 'package:table_calendar/table_calendar.dart';
+import 'dart:async';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../widgets/order_card.dart';
 import '../widgets/custom_header.dart';
 import '../widgets/order_form_modal.dart';
-
-class CLPInputFormatter extends TextInputFormatter {
-  @override
-  TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {
-    if (newValue.text.isEmpty) return newValue;
-    String cleanText = newValue.text.replaceAll('.', '');
-    String formattedText = cleanText.replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]}.');
-    return TextEditingValue(
-      text: formattedText,
-      selection: TextSelection.collapsed(offset: formattedText.length),
-    );
-  }
-}
 
 class OrderData {
   String id; 
@@ -71,7 +55,7 @@ class OrderData {
 // NOTIFICADORES GLOBALES
 // ==========================================
 List<OrderData> globalOrders = [];
-bool isDataLoaded = false; // EL INTERRUPTOR QUE CONTROLA LAS CARGAS
+bool isDataLoaded = false;
 ValueNotifier<int> appDataNotifier = ValueNotifier(0);
 ValueNotifier<int> appTabIndex = ValueNotifier(0);
 ValueNotifier<String> globalSearchNotifier = ValueNotifier("");
@@ -84,19 +68,15 @@ class OrdersScreen extends StatefulWidget {
 
 class _OrdersScreenState extends State<OrdersScreen> with SingleTickerProviderStateMixin {
   String _searchQuery = "";
+  String _paymentFilter = "Todos"; // "Todos" | "No pagado" | "Monto abonado" | "Pagado"
   DateTime _focusedDay = DateTime.now();
-  
-  final _searchController = TextEditingController(); 
-  final _productCtrl = TextEditingController();
-  final _customerCtrl = TextEditingController();
-  final _priceCtrl = TextEditingController();
-  final _abonoCtrl = TextEditingController();
-  final _notasCtrl = TextEditingController();
+
+  final _searchController = TextEditingController();
 
   late TabController _tabController;
-  late PageController _pageController; 
-  
-  StreamSubscription? _pedidosSub; 
+  late PageController _pageController;
+
+  StreamSubscription? _pedidosSub;
 
   @override
   void initState() {
@@ -115,7 +95,7 @@ class _OrdersScreenState extends State<OrdersScreen> with SingleTickerProviderSt
   void _escucharPedidos() {
     _pedidosSub = FirebaseFirestore.instance.collection('pedidos').snapshots().listen((snapshot) {
       globalOrders = snapshot.docs.map((doc) => OrderData.fromFirestore(doc)).toList();
-      isDataLoaded = true; // Avisa a toda la app que ya hay datos
+      isDataLoaded = true;
       if (mounted) {
         appDataNotifier.value++; 
       }
@@ -234,12 +214,13 @@ class _OrdersScreenState extends State<OrdersScreen> with SingleTickerProviderSt
   String _formatCLP(int value) => value.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]}.');
 
   List<OrderData> _getListaFiltrada(bool esFinalizado) {
-    return globalOrders.where((o) { 
-      bool coincidePestana = esFinalizado ? (o.productionStatus == "Entregado") : (o.productionStatus != "Entregado");
-      bool coincideBusqueda = o.product.toLowerCase().contains(_searchQuery.toLowerCase()) || 
-                              o.customer.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-                              o.date.contains(_searchQuery); 
-      return coincidePestana && coincideBusqueda;
+    return globalOrders.where((o) {
+      final coincidePestana = esFinalizado ? (o.productionStatus == "Entregado") : (o.productionStatus != "Entregado");
+      final coincideBusqueda = o.product.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+          o.customer.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+          o.date.contains(_searchQuery);
+      final coincidePago = _paymentFilter == "Todos" || o.paymentStatus == _paymentFilter;
+      return coincidePestana && coincideBusqueda && coincidePago;
     }).toList()..sort((a, b) => a.dateTime.compareTo(b.dateTime));
   }
 
@@ -380,7 +361,44 @@ class _OrdersScreenState extends State<OrdersScreen> with SingleTickerProviderSt
                 ),
               ),
               
-              const SizedBox(height: 15),
+              const SizedBox(height: 10),
+
+              // Filtros de estado de pago
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 15),
+                child: Row(
+                  children: [
+                    for (final filter in ["Todos", "No pagado", "Monto abonado", "Pagado"])
+                      Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: GestureDetector(
+                          onTap: () => setState(() => _paymentFilter = filter),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: _paymentFilter == filter ? const Color(0xFFD98A7A) : Colors.white,
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: _paymentFilter == filter ? const Color(0xFFD98A7A) : Colors.grey.shade300,
+                              ),
+                            ),
+                            child: Text(
+                              filter == "Monto abonado" ? "Abonado" : filter,
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: _paymentFilter == filter ? Colors.white : Colors.grey.shade700,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 10),
 
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 15),
@@ -496,59 +514,3 @@ class _OrdersScreenState extends State<OrdersScreen> with SingleTickerProviderSt
   }
 }
 
-class _VisorImagenesState extends State<VisorImagenes> {
-  late PageController _pageController;
-  late int _currentIndex;
-
-  @override
-  void initState() {
-    super.initState();
-    _currentIndex = widget.indiceInicial;
-    _pageController = PageController(initialPage: _currentIndex);
-  }
-
-  @override
-  void dispose() { _pageController.dispose(); super.dispose(); }
-
-  void _eliminarActual() {
-    widget.onEliminar(_currentIndex);
-    if (widget.imagenes.isEmpty) { Navigator.pop(context); } else {
-      if (_currentIndex >= widget.imagenes.length) _currentIndex = widget.imagenes.length - 1; 
-      _pageController.jumpToPage(_currentIndex);
-      setState(() {});
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black87,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent, elevation: 0, iconTheme: const IconThemeData(color: Colors.white),
-        actions: [ IconButton(icon: const Icon(Icons.delete, color: Colors.redAccent), onPressed: _eliminarActual) ],
-      ),
-      body: Stack(
-        alignment: Alignment.center,
-        children: [
-          PageView.builder(
-            controller: _pageController, itemCount: widget.imagenes.length,
-            onPageChanged: (index) => setState(() => _currentIndex = index),
-            itemBuilder: (context, index) { 
-              return InteractiveViewer(
-                minScale: 0.5, maxScale: 4.0, 
-                child: widget.imagenes[index] is String 
-                    ? Image.network(widget.imagenes[index], fit: BoxFit.contain)
-                    : Image.memory(widget.imagenes[index] as Uint8List, fit: BoxFit.contain)
-              ); 
-            },
-          ),
-          if (_currentIndex > 0)
-            Positioned(left: 10, child: CircleAvatar(backgroundColor: Colors.black54, child: IconButton(icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 18), onPressed: () => _pageController.previousPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut)))),
-          if (_currentIndex < widget.imagenes.length - 1)
-            Positioned(right: 10, child: CircleAvatar(backgroundColor: Colors.black54, child: IconButton(icon: const Icon(Icons.arrow_forward_ios, color: Colors.white, size: 18), onPressed: () => _pageController.nextPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut)))),
-          Positioned(bottom: 30, child: Container(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6), decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(15)), child: Text("${_currentIndex + 1} / ${widget.imagenes.length}", style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold))))
-        ],
-      ),
-    );
-  }
-}

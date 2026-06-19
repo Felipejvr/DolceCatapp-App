@@ -1,19 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_auth/firebase_auth.dart'; // NUEVO: Autenticación
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'screens/dashboard_screen.dart';
 import 'screens/orders_screen.dart';
-import 'screens/inventory_screen.dart';
+import 'screens/compras_screen.dart';
 import 'screens/reports_screen.dart';
-import 'screens/login_screen.dart'; // NUEVO: Importamos la pantalla de acceso
+import 'screens/login_screen.dart';
 
 import 'firebase_options_dev.dart' as dev;
 import 'firebase_options_prod.dart' as prod;
 
 // Cambia a 'false' SOLO cuando vayas a lanzar la app real a tus clientes.
-const bool isDevMode = false; 
+const bool isDevMode = false;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -49,7 +49,6 @@ class BakerApp extends StatelessWidget {
         scaffoldBackgroundColor: const Color(0xFFFFF5F0),
         useMaterial3: true,
       ),
-      // NUEVO: Evaluamos en tiempo real si el usuario tiene sesión activa
       home: StreamBuilder<User?>(
         stream: FirebaseAuth.instance.authStateChanges(),
         builder: (context, snapshot) {
@@ -89,8 +88,6 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   void _inicializarDatosGlobales() {
-    // Nota: Como ya implementamos la lectura de Firebase en orders_screen, 
-    // estos datos temporales podrían mostrarse solo un instante, pero los mantenemos por seguridad.
     if (globalOrders.isEmpty) {
       globalOrders.addAll([
         OrderData(
@@ -115,9 +112,8 @@ class _MyHomePageState extends State<MyHomePage> {
   List<Widget> get _paginas => [
     const DashboardScreen(), // Index 0
     const OrdersScreen(),    // Index 1
-    const InventoryScreen(), // Index 2
-    const Center(child: Text("Clientes en construcción 🚧")), // Index 3
-    const ReportsScreen(),   // Index 4 
+    const ComprasScreen(),   // Index 2
+    const ReportsScreen(),   // Index 3
   ];
 
   @override
@@ -150,8 +146,7 @@ class _MyHomePageState extends State<MyHomePage> {
                 items: const [
                   BottomNavigationBarItem(icon: Icon(Icons.home_outlined), activeIcon: Icon(Icons.home), label: 'Resumen'),
                   BottomNavigationBarItem(icon: Icon(Icons.receipt_long_outlined), activeIcon: Icon(Icons.receipt_long), label: 'Pedidos'),
-                  BottomNavigationBarItem(icon: Icon(Icons.inventory_2_outlined), activeIcon: Icon(Icons.inventory_2), label: 'Insumos'),
-                  BottomNavigationBarItem(icon: Icon(Icons.people_outline), activeIcon: Icon(Icons.people), label: 'Clientes'),
+                  BottomNavigationBarItem(icon: Icon(Icons.shopping_cart_outlined), activeIcon: Icon(Icons.shopping_cart), label: 'Compras'),
                   BottomNavigationBarItem(icon: Icon(Icons.bar_chart_outlined), activeIcon: Icon(Icons.bar_chart), label: 'Reportes'),
                 ],
               ),
