@@ -293,6 +293,10 @@ void showOrderForm(BuildContext context, {OrderData? orderToEdit}) {
                                 'productionStatus': tempProdStatus,
                                 'notas': notasCtrl.text,
                                 'imagenesRef': finalImageUrls,
+                                'pagos': OrderData.adjustPayments(
+                                  orderToEdit?.payments ?? [],
+                                  OrderData.receivedFor(tempPaymentStatus, p, a),
+                                ).map((x) => x.toMap()).toList(),
                               };
 
                               if (orderToEdit == null) {
