@@ -25,10 +25,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
   void _prevMonth() => setState(() => _selectedMonth = DateTime(_selectedMonth.year, _selectedMonth.month - 1));
   void _nextMonth() => setState(() => _selectedMonth = DateTime(_selectedMonth.year, _selectedMonth.month + 1));
 
-  bool get _isCurrentMonth {
-    final now = DateTime.now();
-    return _selectedMonth.month == now.month && _selectedMonth.year == now.year;
-  }
 
   String _getMonthName(int month) {
     const months = ['', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
@@ -36,17 +32,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   int get _currentMonthSales {
-    int total = 0;
-    for (var o in globalOrders) {
-      try {
-        final parts = o.date.split('/');
-        if (int.parse(parts[1]) == _selectedMonth.month && int.parse(parts[2]) == _selectedMonth.year) {
-          if (o.paymentStatus == "Pagado") total += o.price;
-          else if (o.paymentStatus == "Monto abonado") total += o.amountPaid;
-        }
-      } catch (e) {}
-    }
-    return total;
+    return globalOrders.fold(0, (sum, o) => sum + o.receivedInMonth(_selectedMonth.month, _selectedMonth.year));
   }
 
   int get _currentMonthExpenses {
@@ -59,16 +45,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final pMonth = _selectedMonth.month == 1 ? 12 : _selectedMonth.month - 1;
     final pYear = _selectedMonth.month == 1 ? _selectedMonth.year - 1 : _selectedMonth.year;
 
-    int prevSales = 0;
-    for (var o in globalOrders) {
-      try {
-        final parts = o.date.split('/');
-        if (int.parse(parts[1]) == pMonth && int.parse(parts[2]) == pYear) {
-          if (o.paymentStatus == "Pagado") prevSales += o.price;
-          else if (o.paymentStatus == "Monto abonado") prevSales += o.amountPaid;
-        }
-      } catch (e) {}
-    }
+    final prevSales = globalOrders.fold(0, (sum, o) => sum + o.receivedInMonth(pMonth, pYear));
     final prevExpenses = globalExpenses
         .where((e) => e.date.month == pMonth && e.date.year == pYear)
         .fold(0, (sum, item) => sum + item.amount);
@@ -409,8 +386,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.grey.shade700),
                             ),
                             IconButton(
-                              icon: Icon(Icons.chevron_right, color: _isCurrentMonth ? Colors.grey.shade300 : mainColor),
-                              onPressed: _isCurrentMonth ? null : _nextMonth,
+                              icon: Icon(Icons.chevron_right, color: mainColor),
+                              onPressed: _nextMonth,
                               splashRadius: 20,
                             ),
                           ],

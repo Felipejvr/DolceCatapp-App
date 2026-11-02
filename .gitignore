@@ -49,3 +49,5 @@ firebase.exe
 .firebase/
 firepit-log.txt
 firebase.json
+# Backups locales de Firestore (contienen datos de clientes)
+backup_*/

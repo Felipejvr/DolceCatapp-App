@@ -8,8 +8,22 @@ import '../widgets/order_card.dart';
 import '../widgets/custom_header.dart';
 import '../widgets/order_form_modal.dart';
 
+// Un pago recibido: cuenta como ingreso en el mes de su fecha, no en el de entrega del pedido
+class OrderPayment {
+  final int amount;
+  final DateTime date;
+  OrderPayment(this.amount, this.date);
+
+  Map<String, dynamic> toMap() => {'monto': amount, 'fecha': Timestamp.fromDate(date)};
+
+  static OrderPayment? fromMap(dynamic m) {
+    if (m is! Map || m['fecha'] is! Timestamp) return null;
+    return OrderPayment((m['monto'] as num?)?.toInt() ?? 0, (m['fecha'] as Timestamp).toDate());
+  }
+}
+
 class OrderData {
-  String id; 
+  String id;
   String product; 
   String customer; 
   String date; 
@@ -19,13 +33,55 @@ class OrderData {
   String productionStatus; 
   String notas;
   List<dynamic> imagenesRef;
+  List<OrderPayment>? pagos; // null = pedido antiguo sin historial de pagos
 
   OrderData({
     required this.id, required this.product, required this.customer,
     required this.date, required this.price, this.amountPaid = 0,
     required this.paymentStatus, required this.productionStatus, required this.notas,
-    this.imagenesRef = const [], 
+    this.imagenesRef = const [], this.pagos,
   });
+
+  // Total cobrado según el estado de pago
+  static int receivedFor(String paymentStatus, int price, int amountPaid) {
+    if (paymentStatus == "Pagado") return price;
+    if (paymentStatus == "Monto abonado") return amountPaid;
+    return 0;
+  }
+
+  int get totalReceived => receivedFor(paymentStatus, price, amountPaid);
+
+  // Pagos efectivos. Los pedidos antiguos sin historial se cuentan en su fecha de entrega.
+  List<OrderPayment> get payments {
+    if (pagos != null) return pagos!;
+    final received = totalReceived;
+    return received > 0 ? [OrderPayment(received, dateTime)] : [];
+  }
+
+  int receivedInMonth(int month, int year) => payments
+      .where((p) => p.date.month == month && p.date.year == year)
+      .fold(0, (sum, p) => sum + p.amount);
+
+  // Ajusta el historial para que sume `newReceived`: un aumento queda como pago de hoy,
+  // una disminución (corrección) se descuenta de los pagos más recientes.
+  static List<OrderPayment> adjustPayments(List<OrderPayment> current, int newReceived) {
+    final result = List<OrderPayment>.from(current);
+    int diff = newReceived - result.fold(0, (sum, p) => sum + p.amount);
+    if (diff > 0) {
+      result.add(OrderPayment(diff, DateTime.now()));
+    } else {
+      while (diff < 0 && result.isNotEmpty) {
+        final last = result.removeLast();
+        if (last.amount + diff > 0) {
+          result.add(OrderPayment(last.amount + diff, last.date));
+          diff = 0;
+        } else {
+          diff += last.amount;
+        }
+      }
+    }
+    return result;
+  }
 
   DateTime get dateTime {
     try {
@@ -47,6 +103,9 @@ class OrderData {
       productionStatus: data['productionStatus'] ?? 'Tomado',
       notas: data['notas'] ?? '',
       imagenesRef: data['imagenesRef'] != null ? List<dynamic>.from(data['imagenesRef']) : [],
+      pagos: data['pagos'] is List
+          ? (data['pagos'] as List).map(OrderPayment.fromMap).whereType<OrderPayment>().toList()
+          : null,
     );
   }
 }

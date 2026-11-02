@@ -112,27 +112,8 @@ class _ReportsScreenState extends State<ReportsScreen> with SingleTickerProvider
 
   // --- LÓGICA DE FILTRADO Y CÁLCULO ---
 
-  bool _isSameMonthYear(String dateStr) {
-    try {
-      List<String> parts = dateStr.split('/');
-      int m = int.parse(parts[1]);
-      int y = int.parse(parts[2]);
-      return m == _selectedMonth && y == _selectedYear;
-    } catch (e) { return false; }
-  }
-
   int get _totalSales {
-    int total = 0;
-    for (var o in globalOrders) {
-      if (_isSameMonthYear(o.date)) {
-        if (o.paymentStatus == "Pagado") {
-          total += o.price;
-        } else if (o.paymentStatus == "Monto abonado") {
-          total += o.amountPaid;
-        }
-      }
-    }
-    return total;
+    return globalOrders.fold(0, (sum, o) => sum + o.receivedInMonth(_selectedMonth, _selectedYear));
   }
 
   int get _totalExpenses {
@@ -160,16 +141,7 @@ class _ReportsScreenState extends State<ReportsScreen> with SingleTickerProvider
       if (rawMonth <= 0) { rawMonth += 12; year--; }
       final month = rawMonth;
 
-      int income = 0;
-      for (var o in globalOrders) {
-        try {
-          final parts = o.date.split('/');
-          if (int.parse(parts[1]) == month && int.parse(parts[2]) == year) {
-            if (o.paymentStatus == "Pagado") income += o.price;
-            else if (o.paymentStatus == "Monto abonado") income += o.amountPaid;
-          }
-        } catch (_) {}
-      }
+      final income = globalOrders.fold(0, (acc, o) => acc + o.receivedInMonth(month, year));
 
       final expenses = globalExpenses
           .where((e) => e.date.month == month && e.date.year == year)
@@ -603,13 +575,8 @@ ${expenseLines.isEmpty ? 'Sin gastos' : expenseLines}
   }
 
   void _mostrarHistorialIngresos() {
-    final ordenesMes = globalOrders.where((o) {
-      try {
-        final parts = o.date.split('/');
-        return int.parse(parts[1]) == _selectedMonth && int.parse(parts[2]) == _selectedYear &&
-            (o.paymentStatus == "Pagado" || o.paymentStatus == "Monto abonado");
-      } catch (_) { return false; }
-    }).toList()..sort((a, b) => a.dateTime.compareTo(b.dateTime));
+    final ordenesMes = globalOrders.where((o) => o.receivedInMonth(_selectedMonth, _selectedYear) != 0).toList()
+      ..sort((a, b) => a.dateTime.compareTo(b.dateTime));
 
     showModalBottomSheet(
       context: context,
@@ -648,7 +615,7 @@ ${expenseLines.isEmpty ? 'Sin gastos' : expenseLines}
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         itemBuilder: (_, i) {
                           final o = ordenesMes[i];
-                          final ingreso = o.paymentStatus == "Pagado" ? o.price : o.amountPaid;
+                          final ingreso = o.receivedInMonth(_selectedMonth, _selectedYear);
                           return ListTile(
                             contentPadding: const EdgeInsets.symmetric(vertical: 4),
                             leading: Container(
