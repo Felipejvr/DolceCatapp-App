@@ -266,7 +266,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               _itemDetalle("Cliente", order.customer, Icons.person),
               _itemDetalle("Entrega", order.date, Icons.calendar_today),
               _itemDetalle("Total", "\$${_formatCLP(order.price)}", Icons.payments),
-              _itemDetalle("Pago", order.paymentStatus, Icons.check_circle_outline),
+              _itemDetalle("Pago", order.paymentStatus == "Monto abonado" ? "Monto abonado (\$${_formatCLP(order.amountPaid)})" : order.paymentStatus, Icons.check_circle_outline),
               _itemDetalle("Producción", order.productionStatus, Icons.shutter_speed),
               const Divider(),
               const Text("Notas:", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
@@ -620,9 +620,120 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   child: const Row(children: [Icon(Icons.add, size: 14, color: Colors.white), SizedBox(width: 4), Text("Gasto", style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold))]),
                 ),
               ),
+              const SizedBox(height: 6),
+              InkWell(
+                onTap: _mostrarRegistroMes,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(color: mainColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
+                  child: Row(children: [Icon(Icons.receipt_long, size: 14, color: mainColor), const SizedBox(width: 4), Text("Registro", style: TextStyle(color: mainColor, fontSize: 11, fontWeight: FontWeight.bold))]),
+                ),
+              ),
             ],
           ),
         ],
+      ),
+    );
+  }
+
+  // --- Registro del mes: ingresos y gastos ---
+
+  String _fmtFecha(DateTime d) => "${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}";
+
+  void _mostrarRegistroMes() {
+    final month = _selectedMonth.month;
+    final year = _selectedMonth.year;
+
+    // Un registro por cada pago recibido en el mes (un pedido puede tener varios)
+    final ingresos = <({OrderData order, OrderPayment pago})>[];
+    for (final o in globalOrders) {
+      for (final p in o.payments) {
+        if (p.date.month == month && p.date.year == year) ingresos.add((order: o, pago: p));
+      }
+    }
+    ingresos.sort((a, b) => a.pago.date.compareTo(b.pago.date));
+
+    final gastos = globalExpenses.where((e) => e.date.month == month && e.date.year == year).toList()
+      ..sort((a, b) => a.date.compareTo(b.date));
+
+    final totalIngresos = ingresos.fold(0, (acc, r) => acc + r.pago.amount);
+    final totalGastos = gastos.fold(0, (acc, e) => acc + e.amount);
+    final balance = totalIngresos - totalGastos;
+
+    Widget seccion(String titulo, IconData icon, Color color, int total) => Container(
+      margin: const EdgeInsets.only(top: 16, bottom: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
+      child: Row(children: [
+        Icon(icon, size: 16, color: color), const SizedBox(width: 8),
+        Expanded(child: Text(titulo, style: TextStyle(fontWeight: FontWeight.bold, color: color, fontSize: 13))),
+        Text("\$${_formatCLP(total)}", style: TextStyle(fontWeight: FontWeight.bold, color: color, fontSize: 13)),
+      ]),
+    );
+
+    Widget fila(String titulo, String subtitulo, String monto, Color color) => Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+      child: Row(children: [
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(titulo, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13), maxLines: 1, overflow: TextOverflow.ellipsis),
+            Text(subtitulo, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+          ]),
+        ),
+        const SizedBox(width: 8),
+        Text(monto, style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 13)),
+      ]),
+    );
+
+    Widget vacio(String texto) => Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      child: Center(child: Text(texto, style: const TextStyle(color: Colors.grey, fontSize: 12))),
+    );
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(25))),
+      builder: (ctx) => DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: 0.7,
+        maxChildSize: 0.95,
+        builder: (_, controller) => Column(
+          children: [
+            const SizedBox(height: 12),
+            Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2))),
+            const SizedBox(height: 16),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Row(children: [
+                Icon(Icons.receipt_long, color: mainColor),
+                const SizedBox(width: 10),
+                Expanded(child: Text("Registro — ${_getMonthName(month)} $year", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+                Text(balance < 0 ? "-\$${_formatCLP(balance.abs())}" : "\$${_formatCLP(balance)}",
+                    style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: balance < 0 ? Colors.red : Colors.black87)),
+              ]),
+            ),
+            const SizedBox(height: 8),
+            const Divider(height: 1),
+            Expanded(
+              child: ListView(
+                controller: controller,
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                children: [
+                  seccion("Ganancias (${ingresos.length})", Icons.arrow_upward_rounded, Colors.green.shade700, totalIngresos),
+                  if (ingresos.isEmpty) vacio("Sin ganancias este mes"),
+                  for (final r in ingresos)
+                    fila(r.order.product, "${r.order.customer}  •  ${_fmtFecha(r.pago.date)}", "+\$${_formatCLP(r.pago.amount)}", Colors.green.shade700),
+                  seccion("Gastos (${gastos.length})", Icons.arrow_downward_rounded, Colors.red.shade400, totalGastos),
+                  if (gastos.isEmpty) vacio("Sin gastos este mes"),
+                  for (final e in gastos)
+                    fila(e.description, "${e.category}  •  ${_fmtFecha(e.date)}", "-\$${_formatCLP(e.amount)}", Colors.red.shade400),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
